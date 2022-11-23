@@ -24,11 +24,11 @@
   },
   "main": "lib/index.js",
   "bin": {
-    "vue_dsl": "bin/cli"
+    "react_dsl": "bin/cli"
   },
   "scripts": {
     "dev": "cross-env NODE_ENV=development rollup -c",
-    "build": "cross-env NODE_ENV=production rollup -c && npm run docs",
+    "build": "cross-env NODE_ENV=production rollup -c && npm run docs && npm link",
     "docs": "jsdoc2md -t README.hbs src/*.js > README.md",
     "test_dsl": "npm run dev && node test/pablo.js test/testchico/react.dsl"
   },
