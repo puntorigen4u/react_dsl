@@ -186,6 +186,16 @@ module.exports = async function(context) {
                 name: 'ReactJS / MF',
                 version: '0.0.1',
                 x_level: '2000',
+                language: 'en',
+                autocomplete: {
+                    theme: {
+                        table_bgcolor: "#AAD3F3",
+                        tr0_bgcolor: "#AAD3F3",
+                        tr_bgcolor: "#AAD3F3",
+                        cellpadding: 2,
+                        cellspacing: 0,
+                    }
+                }
             }
         },
         'def_config': {...null_template,

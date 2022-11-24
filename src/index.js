@@ -220,6 +220,7 @@ export default class react_dsl extends concepto {
             'components': 'src/components',
             'pages': 'src/pages',
             'styles': 'src/styles',
+            'theme': 'src/styles/theme',
             'utility': 'src/utility',
             'public': 'src/public',
             'static': 'src/public',
@@ -1674,6 +1675,140 @@ ${cur.attr('name')}: {
         }
     }
 
+    async createSystemFiles() {
+        const path = require('path');
+        const g = (file) => {
+            let res = file;
+            if (file[0] == '@') {
+                const base = file.split('/')[0].replace('@','');
+                const withoutBase = file.replace(`@${base}/`,'');
+                if (base in this.x_state.dirs) {
+                    res = path.join(this.x_state.dirs[base],withoutBase);
+                }
+            }
+            return res;
+        };
+        /*const files = {
+            'App.jsx'       :  path.join(this.x_state.dirs.src,`App.jsx`),
+            'index.html'    :  path.join(this.x_state.dirs.public,`index.html`),
+            'index.js'      :  path.join(this.x_state.dirs.src,`index.js`),
+            'theme.js'      :  path.join(this.x_state.dirs.theme,`theme.js`),
+            'globals.css'   :  path.join(this.x_state.dirs.styles,`globals.css`),
+        };*/
+        //create styles/theme/theme.js
+        //@todo grab values from main node 'styles'
+        this.writeFile(g('@theme/theme.js'),
+        `import { createTheme } from '@mui/material/styles';
+
+        const appTheme = createTheme({
+          palette: {
+            mode: 'light',
+            primary: {
+              main: '#DCED71',
+            },
+            secondary: {
+              main: '#1E1F24'
+            },
+            tertiary: {
+              main: '#34414B'
+            }
+          },
+        });
+        
+        export default appTheme;`);
+
+        //create index.js
+        this.writeFile(g('@src/index.js'),`import("./App");\n`);
+        //create styles/globals.css
+        //@todo grab values from main node 'styles'
+        this.writeFile(g('@styles/globals.css'),
+        `body {
+            font-family: Arial, Helvetica, sans-serif;
+          }
+          
+          .container {
+            font-size: 3rem;
+            margin: auto;
+            max-width: 800px;
+            margin-top: 20px;
+          }
+        `);
+        //create public/index.html
+        //@todo add website title, modify lang, add meta data and any additional head requirements
+        this.writeFile(g('@public/index.html'),
+        `
+        <!DOCTYPE html>
+        <html lang="en">
+        
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>${this.x_state.central_config.apptitle}</title>
+          <link
+            rel="stylesheet"
+            href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap"
+          />
+          <link
+            rel="stylesheet"
+            href="https://fonts.googleapis.com/icon?family=Material+Icons"
+          />
+        </head>
+        
+        <body>
+          <div id="app"></div>
+        </body>
+        
+        </html>        
+        `);
+        //create App.jsx
+        //@todo obtain files and routes from map and use React Router
+        this.writeFile(g('@src/App.jsx'),
+        `import React from "react";
+        import ReactDOM from "react-dom";
+        import 'normalize.css';
+        import '@fontsource/roboto/300.css';
+        import '@fontsource/roboto/400.css';
+        import '@fontsource/roboto/500.css';
+        import '@fontsource/roboto/700.css';
+        
+        import { CacheProvider } from '@emotion/react';
+        import { ThemeProvider, CssBaseline } from '@mui/material';
+        import appTheme from './styles/theme/theme';
+        import createEmotionCache from './utility/createEmotionCache';
+
+        // @todo add a key for each main page
+        import { Home } from "./pages";
+
+        import "./styles/globals.css";
+        
+        const clientSideEmotionCache = createEmotionCache();
+
+        export const App = (props) => {
+        const { Component, emotionCache = clientSideEmotionCache, pageProps } = props;
+
+        return (
+            <CacheProvider value={emotionCache}>
+            <ThemeProvider theme={lightTheme}>
+                <CssBaseline />
+                <div className="container">
+                <Home upto={20}>Hi my friend there</Home>
+                </div>
+            </ThemeProvider>
+            </CacheProvider>
+        )
+        };
+        ReactDOM.render(<App />, document.getElementById("app"));
+        `);
+        // create .babelrc
+        this.writeFile(g('@app/.babelrc'),`{
+            "presets": ["@babel/preset-react", "@babel/preset-env"],
+            "plugins": [
+               ["@babel/transform-runtime"]
+            ]
+        }
+        `);
+    }
+    
     async prepareServerFiles() {
         let path = require('path');
         let index = 
@@ -2350,7 +2485,7 @@ export const decorators = [
         let path = require('path');
         // creates /jsconfig.json file for Vetur and IntelliSense
         let data = {
-            include: [ './client/**/*' ],
+            include: [ './src/**/*' ],
             compilerOptions: {
                 baseUrl: './',
                 module: 'es2015',
@@ -2358,13 +2493,13 @@ export const decorators = [
                 target: 'es5',
                 sourceMap: true,
                 paths: {
-                    '~/*': ['./client/*'],
-                    '@/*': ['./client/*'],
+                    '~/*': ['./src/*'],
+                    '@/*': ['./src/*'],
                     '~~/*': ['./*'],
                     '@@/*': ['./*'] 
                 }
             },
-            exclude: ['node_modules','dist','secrets','.concepto']
+            exclude: ['node_modules','dist','secrets']
         };
         //write to disk
         let target = path.join(this.x_state.dirs.app,`jsconfig.json`);
@@ -2494,13 +2629,13 @@ export const decorators = [
     async writeFile(file,content,encoding='utf-8') {
         let fs = require('fs').promises, prettier = require('prettier');
         let ext = file.split('.').splice(-1)[0].toLowerCase();
-        //console.log('writeFile:'+file+' (ext:'+ext+')');
+        this.debug('writeFile:'+file+' (ext:'+ext+')');
         /*let beautify = require('js-beautify');
         let beautify_js = beautify.js;
         let beautify_vue = beautify.html;
         let beautify_css = beautify.css;*/
         let resp = content;
-        if (ext=='_js') {
+        if (ext=='jsx') {
             try {
                 resp = prettier.format(resp, { parser: 'babel', useTabs:true, singleQuote:true });
             } catch(ee) {
@@ -2509,6 +2644,11 @@ export const decorators = [
                 let beautify_js = beautify.js;
                 resp = beautify_js(resp,{});
             }
+        } else if (ext=='babelrc') {
+            let beautify = require('js-beautify');
+            let beautify_js = beautify.js;
+            resp = beautify_js(resp,{});
+
         } else if (ext=='json') {
             try {
                 resp = prettier.format(resp, { parser: 'json' });
@@ -2518,7 +2658,7 @@ export const decorators = [
                 let beautify_js = beautify.js;
                 resp = beautify_js(resp,{});
             }
-        } else if (ext=='vue') {
+        } else if (ext=='html') {
             /*
             let beautify = require('js-beautify');
             let beautify_vue = beautify.html;
@@ -2526,7 +2666,7 @@ export const decorators = [
             resp = resp.replaceAll(`="xpropx"`,'');
             try {
                 resp = prettier.format(resp, { 
-                    parser: 'vue',
+                    parser: 'html',
                     htmlWhitespaceSensitivity: 'ignore',
                     useTabs: true,
                     printWidth: 2000,
@@ -2535,13 +2675,14 @@ export const decorators = [
                     trailingComma: 'none'
                 });
             } catch(ee) {
-                this.debug(`warning: could not format the vue file; trying vue-beautify`,ee);
+                this.debug(`warning: could not format the html file; trying vue-beautify`,ee);
                 let beautify = require('js-beautify');
                 let beautify_vue = beautify.html;
                 resp = beautify_vue(resp,{});
             }
 
         } else if (ext=='css') {
+            //console.log('prettifiing CSS');
             resp = prettier.format(resp, { parser: 'css' });
         }
         /*
@@ -2612,12 +2753,19 @@ export const decorators = [
                     } //);
                 }
                 // export default
-                react.script = `{concepto:mixins:import}
-                ${script_imports}
-                export default {
-                    ${react.script}
-                    {concepto:mixins:array}
-                }`
+                react.script = `{concepto:import}
+
+                export const {concepto:name} = ({concepto:attributes}) => {
+                    {concepto:variables}
+                    {concepto:init}
+                    {concepto:methods}
+                    return (
+                        <>
+                        {concepto:template}
+                        </>
+                    )
+                }`;
+                react.script = react.script.replaceAll('{concepto:import}',script_imports);
                 // **** **** end script wrap **** **** 
                 // process Mixins
                 //-23nov22- react = this.processMixins(react, page);
@@ -2727,7 +2875,7 @@ export const decorators = [
             //-await this.createMiddlewares();
             //create server files (nuxt express, mimetypes)
             //-await this.prepareServerFiles();
-
+            await this.createSystemFiles();
             //@todo 23nov22 create method for declaring default mf files structure
             //declare required plugins
             //-await this.installRequiredPlugins();
