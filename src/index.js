@@ -371,11 +371,7 @@ export default class react_dsl extends concepto {
         // @idea we could use some 'slug' method here
         resp = resp.replace(/\ /g, '_') + '.js';
         if (node.icons.includes('gohome')) {
-            if (this.x_state.central_config.service_name) {
-                resp = this.x_state.central_config.service_name + '.js';
-            } else {
-                resp = 'index.js';
-            }
+            resp = 'Home.js';
         } else if (node.icons.includes('desktop_new')) {
             if (node.text.indexOf('assets') != -1) {
                 resp = 'internal_assets.omit';
@@ -1688,13 +1684,6 @@ ${cur.attr('name')}: {
             }
             return res;
         };
-        /*const files = {
-            'App.jsx'       :  path.join(this.x_state.dirs.src,`App.jsx`),
-            'index.html'    :  path.join(this.x_state.dirs.public,`index.html`),
-            'index.js'      :  path.join(this.x_state.dirs.src,`index.js`),
-            'theme.js'      :  path.join(this.x_state.dirs.theme,`theme.js`),
-            'globals.css'   :  path.join(this.x_state.dirs.styles,`globals.css`),
-        };*/
         //create styles/theme/theme.js
         //@todo grab values from main node 'styles'
         this.writeFile(g('@theme/theme.js'),
@@ -1735,15 +1724,75 @@ ${cur.attr('name')}: {
         `);
         //create public/index.html
         //@todo add website title, modify lang, add meta data and any additional head requirements
+        //add conifg:meta data
+        let config = { head: { meta: [], script:[] } };  
+        if (this.x_state.config_node['html:meta']) {
+            for (let meta_key in this.x_state.config_node['html:meta']) {
+                if (meta_key.charAt(0)!=':') {
+                    let test = meta_key.toLowerCase().trim();
+                    let value = this.x_state.config_node['html:meta'][meta_key];
+                    if (test=='charset') {
+                        config.head.meta.push({ charset:value });
+                    } else if (test=='description') {
+                        config.head.push({ hid:'description', name:'description', content:value });
+                    } else {
+                        config.head.meta.push({ name:meta_key, content:value });
+                    }
+                }
+            }
+        } else if (this.x_state.config_node.meta && this.x_state.config_node.meta.length>0) {
+            config.head.meta = this.x_state.config_node.meta;
+        }
+        //add custom head scripts
+        //sort head scripts a-z
+        let as_array = [];
+        for (let head in this.x_state.head_script) {
+            as_array.push({ key:head, params:this.x_state.head_script[head] });
+            //config.head.script.push({ ...this.x_state.head_script[head] });
+        }
+        let sorted = as_array.sort(function(key) {
+            let sort_order=1; //desc=-1
+            return function(a,b) {
+                if (a[key] < b[key]) {
+                    return -1 * sort_order;
+                } else if (a[key] > b[key]) {
+                    return 1 * sort_order;
+                } else {
+                    return 0 * sort_order;
+                }
+            }
+        });
+        for (let head in sorted) {
+            config.head.script.push(sorted[head].params);
+        }
+        // convert head into html tags
+        let meta_head = '';
+        for (let meta in config.head.meta) {
+            let meta_tag = config.head.meta[meta];
+            meta_head += `<meta `;
+            for (let key in meta_tag) {
+                meta_head += `${key}="${meta_tag[key]}" `;
+            }
+            meta_head += `>\n`;
+        }
+        for (let script in config.head.script) {
+            let script_tag = config.head.script[script];
+            meta_head += `<script `;
+            for (let key in script_tag) {
+                meta_head += `${key}="${script_tag[key]}" `;
+            }
+            meta_head += `></script>\n`;
+        }
+        //
         this.writeFile(g('@public/index.html'),
         `
         <!DOCTYPE html>
-        <html lang="en">
+        <html lang="${this.x_state.central_config.langs.split(',')[0]}">
         
         <head>
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>${this.x_state.central_config.apptitle}</title>
+          <title>${(this.x_state.config_node['nuxt:title'])?this.x_state.config_node['nuxt:title']:this.x_state.central_config.apptitle}</title>
           <link
             rel="stylesheet"
             href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap"
@@ -1752,6 +1801,7 @@ ${cur.attr('name')}: {
             rel="stylesheet"
             href="https://fonts.googleapis.com/icon?family=Material+Icons"
           />
+          ${meta_head}
         </head>
         
         <body>
@@ -1759,6 +1809,16 @@ ${cur.attr('name')}: {
         </body>
         
         </html>        
+        `);
+        //create createEmotionCache.js
+        this.writeFile(g('@utility/createEmotionCache.js'),
+        `import createCache from '@emotion/cache';
+
+        const createEmotionCache = () => {
+          return createCache({ key: 'css', prepend: true });
+        };
+        
+        export default createEmotionCache;
         `);
         //create App.jsx
         //@todo obtain files and routes from map and use React Router
@@ -1788,7 +1848,7 @@ ${cur.attr('name')}: {
 
         return (
             <CacheProvider value={emotionCache}>
-            <ThemeProvider theme={lightTheme}>
+            <ThemeProvider theme={appTheme}>
                 <CssBaseline />
                 <div className="container">
                 <Home upto={20}>Hi my friend there</Home>
@@ -1807,59 +1867,113 @@ ${cur.attr('name')}: {
             ]
         }
         `);
+        // create webpack.config.js
+        this.writeFile(g('@app/webpack.config.js'),
+        `
+        const HtmlWebPackPlugin = require("html-webpack-plugin");
+        const ModuleFederationPlugin = require("webpack/lib/container/ModuleFederationPlugin");
+        
+        const path = require('path');
+        const deps = require("./package.json").dependencies;
+        module.exports = {
+          output: {
+            publicPath: "http://localhost:${this.x_state.central_config.port}/",
+          },
+        
+          resolve: {
+            extensions: [".tsx", ".ts", ".jsx", ".js", ".json"],
+          },
+        
+          devServer: {
+            historyApiFallback: true,
+            static: {
+              directory: path.join(__dirname),
+            },
+            compress: true,
+            port: ${this.x_state.central_config.port},
+            hot: true,
+            headers: {
+              'Access-Control-Allow-Origin': '*',
+              'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
+              'Access-Control-Allow-Headers': 'X-Requested-With, content-type, Authorization',
+            },
+          },
+        
+          module: {
+            rules: [
+              {
+                test: /\.m?js/,
+                type: "javascript/auto",
+                resolve: {
+                  fullySpecified: false,
+                },
+              },
+              {
+                test: /\.(css|s[ac]ss)$/i,
+                use: ["style-loader", "css-loader", "postcss-loader"],
+              },
+              {
+                test: /\.(ts|tsx|js|jsx)$/,
+                exclude: /node_modules/,
+                use: {
+                  loader: "babel-loader",
+                },
+              },
+            ],
+          },
+        
+          plugins: [
+            new ModuleFederationPlugin({
+              name: "${this.x_state.central_config.apptitle}",
+              filename: "remoteEntry.js",
+              remotes: {
+              },
+              //@todo add components marked as 'shared'
+              exposes: {
+                './App': './src/App',
+                './Home': './src/pages/Home',
+              },
+              shared: {
+                ...deps,
+                react: {
+                  singleton: true,
+                  requiredVersion: deps.react,
+                },
+                "react-dom": {
+                  singleton: true,
+                  requiredVersion: deps["react-dom"],
+                },
+              },
+            }),
+            new HtmlWebPackPlugin({
+              template: "./src/public/index.html",
+              favicon: "./src/public/favicon.ico",
+            }),
+          ],
+        };        
+        `);
+        // create .env file
+        const env = {};
+        const ini = require('ini');
+        for (let node_key in this.x_state.config_node) {
+            if (node_key.includes(':')==false) {
+                if ('aurora,vpc,aws'.split(',').includes(node_key)==false) {
+                    /*if (this.x_state.secrets[node_key]===undefined && typeof this.x_state.config_node[node_key] === 'object') {
+                        env[node_key.toLowerCase()]={...this.x_state.config_node[node_key]};
+                    }*/
+                    if (typeof this.x_state.config_node[node_key] === 'object') {
+                        Object.keys(this.x_state.config_node[node_key]).map(function(attr) {
+                            if (attr.includes(':')==false) {
+                                env[`${(node_key+'_'+attr).toUpperCase()}`] = this.x_state.config_node[node_key][attr];
+                            }
+                        }.bind(this));
+                    }
+                }
+            }
+        }
+        this.writeFile(g('@app/.env'),ini.stringify(env));
     }
     
-    async prepareServerFiles() {
-        let path = require('path');
-        let index = 
-        `// index.js
-        const sls = require('serverless-http');
-        const binaryMimeTypes = require('./binaryMimeTypes');
-        const express = require('express');
-        const app = express();
-        const { Nuxt } = require('nuxt');
-        const path = require('path');
-        const config = require('./nuxt.config.js');
-
-        async function nuxtApp() {
-            app.use('/_nuxt', express.static(path.join(__dirname, '.nuxt', 'dist')));
-            const nuxt = new Nuxt(config);
-            await nuxt.ready();
-            app.use(nuxt.render);
-            return app;
-        }
-
-        module.exports.nuxt = async (event, context) => {
-            let nuxt_app = await nuxtApp();
-            let handler = sls(nuxt_app, { binary: binaryMimeTypes });
-            return await handler (event, context);
-        }
-        `;
-        let index_file = path.join(this.x_state.dirs.app,`index.js`);
-        this.writeFile(index_file,index);
-        // allowed binary mimetypes
-        let util = require('util');
-        let allowed = [
-            'application/javascript', 'application/json', 'application/octet-stream', 'application/xml',
-            'font/eot', 'font/opentype', 'font/otf', 
-            'image/jpeg', 'image/png', 'image/svg+xml',
-            'text/comma-separated-values', 'text/css', 'text/html', 'text/javascript', 'text/plain', 'text/text', 'text/xml'
-        ];
-        if (this.x_state.config_node['nuxt:mimetypes']) {
-            let user_mimes = [];
-            for (let usermime in this.x_state.config_node['nuxt:mimetypes']) {
-                user_mimes.push(usermime);
-            }
-            let sum_mime = [...allowed, ...user_mimes];
-            allowed = [...new Set(sum_mime)]; // clean duplicated values from array
-        }
-        let mime = 
-        `// binaryMimeTypes.js
-        module.exports = ${this.jsDump(allowed)};`;
-        let mime_file = path.join(this.x_state.dirs.app,`binaryMimeTypes.js`);
-        this.writeFile(mime_file,mime);
-    }
-
     async installRequiredPlugins() {
         this.x_state.plugins['vuetify'] = {
             global: true,
@@ -2644,6 +2758,16 @@ export const decorators = [
                 let beautify_js = beautify.js;
                 resp = beautify_js(resp,{});
             }
+        } else if (ext=='js' && file.indexOf('pages/')==-1) {
+            //dont format js pages (for now 24-11-22)
+            try {
+                resp = prettier.format(resp, { parser: 'babel', useTabs:true, singleQuote:true });
+            } catch(ee) {
+                this.debug(`error: could not format the JS file; trying js-beautify`);
+                let beautify = require('js-beautify');
+                let beautify_js = beautify.js;
+                resp = beautify_js(resp,{});
+            }
         } else if (ext=='babelrc') {
             let beautify = require('js-beautify');
             let beautify_js = beautify.js;
@@ -2868,34 +2992,30 @@ export const decorators = [
             }
             this.debug({ message:`Copying assets ready`, color:'cyan'});
         }
-        // create Nuxt template structure
-        if (!this.x_state.central_config.componente) {
-            //-await this.createVueXStores();
-            //-await this.createServerMethods();
-            //-await this.createMiddlewares();
-            //create server files (nuxt express, mimetypes)
-            //-await this.prepareServerFiles();
-            await this.createSystemFiles();
-            //@todo 23nov22 create method for declaring default mf files structure
-            //declare required plugins
-            //-await this.installRequiredPlugins();
-            //create NuxtJS plugin definition files
-            //-let nuxt_plugs = await this.createNuxtPlugins(); //return plugin array list for nuxt.config.js
-            //-this.x_state.nuxt_config.plugins = nuxt_plugs.nuxt_config;
-            //-this.x_state.nuxt_config.css = nuxt_plugs.css_files;
-            //create nuxt.config.js file
-            //@todo 23nov22 refactor this into createWebpackConfig()
-            //-await this.createNuxtConfig()
-            //create package.json
-            await this.createPackageJSON();
-            //create storybook related files
-            //await this.createStorybookFiles();
-            //create VSCode helpers
-            await this.createVSCodeHelpers();
-            //create serverless.yml for deploy:sls - cfc:12881
-            //-await this.createServerlessYML();
-            //execute deploy (npm install, etc) - moved to onEnd
-        }
+        // create React template structure
+
+        //-await this.createVueXStores();
+        //-await this.createServerMethods();
+        //-await this.createMiddlewares();
+        //create server files (nuxt express, mimetypes)
+        //-await this.prepareServerFiles();
+        await this.createSystemFiles();
+        //@todo 23nov22 create method for declaring default mf files structure
+        //declare required plugins
+        //-await this.installRequiredPlugins();
+        //create NuxtJS plugin definition files
+        //-let nuxt_plugs = await this.createNuxtPlugins(); //return plugin array list for nuxt.config.js
+        //-this.x_state.nuxt_config.plugins = nuxt_plugs.nuxt_config;
+        //-this.x_state.nuxt_config.css = nuxt_plugs.css_files;
+        //create package.json
+        await this.createPackageJSON();
+        //create storybook related files
+        //await this.createStorybookFiles();
+        //create VSCode helpers
+        await this.createVSCodeHelpers();
+        //create serverless.yml for deploy:sls - cfc:12881
+        //-await this.createServerlessYML();
+        //execute deploy (npm install, etc) - moved to onEnd
         
     }
 
@@ -3103,7 +3223,7 @@ export const decorators = [
             ':description': central[0].text_note,
             default_face: central[0].font.face,
             default_size: central[0].font.size,
-            apptitle: central[0].text
+            apptitle: central[0].text.replace(' ','_'),
         };
         // overwrite default resp with info from central node
         //resp = {...resp, ...central[0].attributes };
