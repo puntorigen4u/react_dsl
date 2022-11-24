@@ -223,7 +223,8 @@ export default class react_dsl extends concepto {
             'utility': 'src/utility',
             'public': 'src/public',
             'static': 'src/public',
-            'api': 'src/api'            
+            'api': 'src/api',            
+            'secrets': 'secrets',
         };
         this.x_state.dirs = await this._appFolders(target_folders,compile_folder);
         // read modelos node (DB definitions)
@@ -2499,7 +2500,7 @@ export const decorators = [
         let beautify_vue = beautify.html;
         let beautify_css = beautify.css;*/
         let resp = content;
-        if (ext=='js') {
+        if (ext=='_js') {
             try {
                 resp = prettier.format(resp, { parser: 'babel', useTabs:true, singleQuote:true });
             } catch(ee) {
@@ -2574,7 +2575,7 @@ export const decorators = [
         await this.createGitIgnore();
         let plugins_info4stories = await this.createNuxtPlugins(false);
         //this.x_console.out({ message:'plugins_info4stories', data:plugins_info4stories });
-        let add_plugins2story = function(story_vue) {
+        /*let add_plugins2story = function(story_vue) {
             let plugins = plugins_info4stories.stories;
             let resp = story_vue;
             for (let plugin in plugins) {
@@ -2585,7 +2586,7 @@ export const decorators = [
                 }
             }
             return resp.replaceAll('\n\n','\n');
-        };
+        };*/
         this.debug('processing nodes');
         let fs = require('fs').promises, path = require('path');
         for (let thefile_num in processedNodes)  {
@@ -2638,7 +2639,7 @@ export const decorators = [
                 // write files
                 let w_path = path.join(this.x_state.dirs.pages, thefile.file);
                 this.x_console.outT({ message: `writing react 'page' file ${thefile.file}`, color: 'cyan' });
-                await this.writeFile(w_path, vue.full);
+                await this.writeFile(w_path, react.full);
                 //
                 //this.x_console.out({ message: 'vue ' + thefile.title, data: { vue, page_style: page.styles } });
             }.bind(this);
@@ -2650,11 +2651,11 @@ export const decorators = [
             } else if (thefile.file.includes('.group')==true) {
                 this.x_console.outT({ message: `segmenting 'group' file ${thefile.file}`, color: 'cyan' });
                 //console.log('@TODO pending support for "grouped" componentes');
-                //extract vue_file tags
+                //extract react_file tags
                 this.debug('processing group '+thefile.file+' of files',thefile);
                 let cheerio = require('cheerio');
                 let $ = cheerio.load(thefile.code, { ignoreWhitespace: false, xmlMode: true, decodeEntities: false });
-                let files_ = $(`vue_file`).toArray();
+                let files_ = $(`react_file`).toArray();
                 let tobe_created = [];
                 files_.map(function(file_) {
                     let cur = $(file_);
@@ -2929,7 +2930,7 @@ export const decorators = [
             port: 3000,
             git: true,
             ui: 'mui',
-            lang: 'en',
+            langs: 'en',
             cloud: 'aws',
             type: 'simple',
             i18n: false,
@@ -2979,6 +2980,20 @@ export const decorators = [
             resp.service_name = resp.apptitle;
         }
         if (!resp[':cache']) this.x_config.cache = false; // disables cache when processing nodes (@todo)
+        //@temp 23nov22
+        if (resp['ui'] == 'mui') {
+            // add autocomplete definitions for all MUI components
+            // just a demo for now
+            await this.addAutocompleteDefinition({   
+                text:'AppBar',
+                icons:['idea'],
+                level:[3,4],
+                hint:'Top navigation bar',
+                attributes:{
+                    'color': { values:'primary,secondary', hint:'Defines the color of the AppBar' },
+                } 
+            });
+        }
         // return
         return resp;
     }
