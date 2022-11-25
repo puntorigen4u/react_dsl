@@ -158,6 +158,7 @@ export default class react_dsl extends concepto {
         }
         return resp;
     }
+
     //
 
     // **************************
@@ -337,6 +338,18 @@ export default class react_dsl extends concepto {
             }
         }
 
+        // get absolute path for given @file
+        this.g = (file) => {
+            let res = file;
+            if (file[0] == '@') {
+                const base = file.split('/')[0].replace('@','');
+                const withoutBase = file.replace(`@${base}/`,'');
+                if (base in this.x_state.dirs) {
+                    res = path.join(this.x_state.dirs[base],withoutBase);
+                }
+            }
+            return res;
+        };
         // show this.x_state contents
         //this.debug('x_state says',this.x_state);
     }
@@ -375,14 +388,14 @@ export default class react_dsl extends concepto {
         } else if (node.icons.includes('desktop_new')) {
             if (node.text.indexOf('assets') != -1) {
                 resp = 'internal_assets.omit';
-            } else if (node.text.indexOf('store') != -1) {
-                resp = 'internal_stores.omit';
-            } else if (node.text.indexOf('proxy') != -1 || node.text.indexOf('proxies') != -1) {
-                resp = 'internal_middleware.omit';
+            } else if (node.text.indexOf('theme') != -1) {
+                resp = 'internal_theme.omit';
+            } else if (node.text.indexOf('styles') != -1) {
+                resp = 'internal_styles.omit';
             } else if (node.text.indexOf('config') != -1) {
                 resp = 'config.omit';
-            } else if (node.text.indexOf('modelos') != -1) { //@todo rename into 'models'
-                resp = 'modelos.omit';
+            } else if (node.text.indexOf('models') != -1) { //@todo rename into 'models'
+                resp = 'models.omit';
             } else if (['servidor', 'server', 'api'].includes(node.text)) {
                 resp = 'server.omit';
             }
@@ -813,44 +826,45 @@ ${this.x_state.dirs.compile_folder}/`;
     async getBasicReact(thefile) {
         // write .JSX file
         // @todo 23-nov-22 refactor this into JSX needs
-        let vue = { template: thefile.code, script: '', style: '', first: false };
+        let react = { template: thefile.code, script: '', style: '', first: false, variables:'' };
         let page = this.x_state.pages[thefile.title];
+        let vars = {};
         if (page) {
             // declare middlewares (proxies)
             if (page.proxies.indexOf(',') != -1) {
                 this.debug('- declare middlewares');
-                vue.script += `middleware: [${page.proxies}]`;
-                vue.first = true;
+                react.script += `middleware: [${page.proxies}]`;
+                react.first = true;
             } else if (page.proxies.trim() != '') {
                 this.debug('- declare middlewares');
-                vue.script += `middleware: '${page.proxies}'`;
-                vue.first = true;
+                react.script += `middleware: '${page.proxies}'`;
+                react.first = true;
             }
             // layout attr
             if (page.layout != '') {
                 this.debug('- declare layout');
-                if (vue.first) vue.script += ',\n';
-                vue.first = true;
-                vue.script += `layout: '${page.layout.trim()}'`;
+                if (react.first) react.script += ',\n';
+                react.first = true;
+                react.script += `layout: '${page.layout.trim()}'`;
             }
             // declare components
             if (page.components != '') {
                 this.debug('- declare components');
-                if (vue.first) vue.script += ',\n';
-                vue.first = true;
-                vue.script += `components: {`;
+                if (react.first) react.script += ',\n';
+                react.first = true;
+                react.script += `components: {`;
                 let comps = [];
                 Object.keys(page.components).map(function(key) {
                     comps.push(` '${key}': ${page.components[key]}`);
                 }); //.bind(page,comps));
-                vue.script += `${comps.join(',')}\n\t}`;
+                react.script += `${comps.join(',')}\n\t}`;
             }
             // declare directives
             if (page.directives != '') {
                 this.debug('- declare directives');
-                if (vue.first) vue.script += ',\n';
-                vue.first = true;
-                vue.script += `directives: {`;
+                if (react.first) react.script += ',\n';
+                react.first = true;
+                react.script += `directives: {`;
                 let directs = [];
                 Object.keys(page.directives).map(function(key) {
                     if (key == page.directives[key]) {
@@ -859,13 +873,13 @@ ${this.x_state.dirs.compile_folder}/`;
                         directs.push(`'${key}': ${page.directives[key]}`);
                     }
                 }); //.bind(page,directs));
-                vue.script += `${directs.join(',')}\n\t}`;
+                react.script += `${directs.join(',')}\n\t}`;
             }
             // declare props (if page tipo componente)
             if (page.tipo == 'componente' && page.params != '') {
                 this.debug('- declare componente:props');
-                if (vue.first) vue.script += ',\n';
-                vue.first = true;
+                if (react.first) react.script += ',\n';
+                react.first = true;
                 let isNumeric = function(n) {
                     return !isNaN(parseFloat(n)) && isFinite(n);
                 };
@@ -892,63 +906,80 @@ ${this.x_state.dirs.compile_folder}/`;
                             props.push(`${key}: { default: '${def_val}' }`);
                         }
                     });
-                    vue.script += `\tprops: {${props.join(',')}}`;
+                    react.script += `\tprops: {${props.join(',')}}`;
                 } else {
                     page.params.split(',').map(function(key) {
                         props.push(`'${key}'`);
                     });
-                    vue.script += `\tprops: [${props.join(',')}]`;                    
+                    react.script += `\tprops: [${props.join(',')}]`;                    
                 }
                 
             }
             // declare meta data
             if (page.xtitle || page.meta.length > 0 || page.link.length > 0) {
                 this.debug('- declare head() meta data');
-                if (vue.first) vue.script += ',\n';
-                vue.first = true;
-                vue.script += ` head() {\n return {\n`;
+                if (react.first) react.script += ',\n';
+                react.first = true;
+                react.script += ` head() {\n return {\n`;
                 // define title
                 if (page.xtitle) {
-                    if (this.x_state.central_config.idiomas.indexOf(',') != -1) {
+                    if (this.x_state.central_config.langs.indexOf(',') != -1) {
                         // i18n title
                         let crc32 = `t_${(await this.hash(page.xtitle))}`;
-                        let def_lang = this.x_state.central_config.idiomas.indexOf(',')[0].trim().toLowerCase();
+                        let def_lang = this.x_state.central_config.langs.indexOf(',')[0].trim().toLowerCase();
                         if (!this.x_state.strings_i18n[def_lang]) {
                             this.x_state.strings_i18n[def_lang] = {};
                         }
                         this.x_state.strings_i18n[def_lang][crc32] = page.xtitle;
-                        vue.script += `titleTemplate: this.$t('${crc32}')\n`;
+                        react.script += `titleTemplate: this.$t('${crc32}')\n`;
                     } else {
                         // normal title
-                        vue.script += `titleTemplate: ${this.jsDump(page.xtitle)}\n`;
+                        react.script += `titleTemplate: ${this.jsDump(page.xtitle)}\n`;
                     }
                 }
                 // define meta SEO
                 if (page.meta.length > 0) {
-                    if (page.xtitle) vue.script += `,`;
+                    if (page.xtitle) react.script += `,`;
                     //vue.script += `meta: ${JSON.stringify(page.meta)}\n`;
-                    vue.script += `meta: ${this.jsDump(page.meta)}\n`;
+                    react.script += `meta: ${this.jsDump(page.meta)}\n`;
                 }
                 // define head LINK
                 if (page.link.length > 0) {
-                    if (page.xtitle || page.meta.length > 0) vue.script += `,`;
-                    vue.script += `link: ${JSON.stringify(page.link)}\n`;
+                    if (page.xtitle || page.meta.length > 0) react.script += `,`;
+                    react.script += `link: ${JSON.stringify(page.link)}\n`;
                 }
-                vue.script += `};\n}`;
+                react.script += `};\n}`;
             }
             // declare variables (data)
             if (Object.keys(page.variables) != '') {
                 this.debug('- declare data() variables');
-                if (vue.first) vue.script += ',\n';
-                vue.first = true;
-                let util = require('util');
-                vue.script += `data() {\n`;
-                vue.script += ` return ${this.jsDump(page.variables)}\n`;
-                vue.script += `}\n`;
-                //this.debug('- declare data() variables dump',page.variables);
+                let camel = require('camelcase');
+                if (react.first) react.script += ',\n';
+                react.first = true;
+                for (let key in page.variables) {
+                    let def_val = (page.defaults[key])?page.defaults[key]:`''`;
+                    if (page.var_types[key] && def_val==`''`) {
+                        const type = page.var_types[key];
+                        if (type=='string') { 
+                            def_val = `''`;
+                        } else if (type=='number') {
+                            def_val = '0';
+                        } else if (type=='boolean') {
+                            def_val = 'false';
+                        } else if (type=='object') {
+                            def_val = '{}';
+                        }
+                    }
+                    react.variables += `const [ ${key}, ${camel('set_'+key)} ] = useState(${def_val});\n`;
+                }
+                //react.script += `data() {\n`;
+                //react.script += ` return ${this.jsDump(page.variables)}\n`;
+                //react.script += `}\n`;
+                this.debug('- declare data() variables dump',react.variables);
+                //react.variables = this.jsDump(page.variables);
             }
         }
-        return vue;
+        return react;
     }
 
     async processInternalTags(vue, page) {
@@ -1673,17 +1704,8 @@ ${cur.attr('name')}: {
 
     async createSystemFiles() {
         const path = require('path');
-        const g = (file) => {
-            let res = file;
-            if (file[0] == '@') {
-                const base = file.split('/')[0].replace('@','');
-                const withoutBase = file.replace(`@${base}/`,'');
-                if (base in this.x_state.dirs) {
-                    res = path.join(this.x_state.dirs[base],withoutBase);
-                }
-            }
-            return res;
-        };
+        const g = this.g;
+        
         //create styles/theme/theme.js
         //@todo grab values from main node 'styles'
         this.writeFile(g('@theme/theme.js'),
@@ -1820,6 +1842,7 @@ ${cur.attr('name')}: {
         
         export default createEmotionCache;
         `);
+        //@pages/index.js created on onCreateFiles
         //create App.jsx
         //@todo obtain files and routes from map and use React Router
         this.writeFile(g('@src/App.jsx'),
@@ -1851,7 +1874,7 @@ ${cur.attr('name')}: {
             <ThemeProvider theme={appTheme}>
                 <CssBaseline />
                 <div className="container">
-                <Home upto={20}>Hi my friend there</Home>
+                <Home/>
                 </div>
             </ThemeProvider>
             </CacheProvider>
@@ -2758,7 +2781,7 @@ export const decorators = [
                 let beautify_js = beautify.js;
                 resp = beautify_js(resp,{});
             }
-        } else if (ext=='js' && file.indexOf('pages/')==-1) {
+        } else if (ext=='js') { // && file.indexOf('pages/')==-1 25nov22
             //dont format js pages (for now 24-11-22)
             try {
                 resp = prettier.format(resp, { parser: 'babel', useTabs:true, singleQuote:true });
@@ -2838,7 +2861,19 @@ export const decorators = [
         //this.x_console.out({ message:'x_state.plugins', data:this.x_state.plugins });
         await this.generalConfigSetup();
         await this.createGitIgnore();
-        let plugins_info4stories = await this.createNuxtPlugins(false);
+        //create @pages/index.js file with references
+        let page_exports = '';
+        for (let thefile_num in processedNodes)  {
+            let thefile = processedNodes[thefile_num];
+            if (thefile.state && thefile.state.current_page) {
+                const name = thefile.file.split('.')[0];
+                page_exports += `export { ${name} } from './${name}';\n`;
+            }
+        }
+        if (page_exports!='') {
+            this.writeFile(this.g('@pages/index.js'),page_exports);
+        }
+        //let plugins_info4stories = await this.createNuxtPlugins(false);
         //this.x_console.out({ message:'plugins_info4stories', data:plugins_info4stories });
         /*let add_plugins2story = function(story_vue) {
             let plugins = plugins_info4stories.stories;
@@ -2890,6 +2925,16 @@ export const decorators = [
                     )
                 }`;
                 react.script = react.script.replaceAll('{concepto:import}',script_imports);
+                react.script = react.script.replaceAll('{concepto:name}',thefile.file.split('.')[0]);
+                react.script = react.script.replaceAll('{concepto:variables}',react.variables);
+                react.script = react.script.replaceAll('{concepto:template}',react.template);
+                react.script = react.script.replaceAll('{concepto:init}',''); //@todo
+                react.script = react.script.replaceAll('{concepto:methods}',''); //@todo
+                if (page.params=='') {
+                    react.script = react.script.replaceAll('{concepto:attributes}','{ children }');
+                } else {
+                    react.script = react.script.replaceAll('{concepto:attributes}',`{ ${page.params.split(',').push('children').join(',')} }`);
+                }
                 // **** **** end script wrap **** **** 
                 // process Mixins
                 //-23nov22- react = this.processMixins(react, page);
@@ -2904,9 +2949,10 @@ export const decorators = [
                 // ********************************** //
                 // beautify the script and template
                 // ********************************** //
-                react.script = '<script>\n' + react.script + '\n</script>';
+                //react.script = '<script>\n' + react.script + '\n</script>';
                 if (!react.style) react.style = '';
-                react.full = `${react.template}\n${react.script}\n${react.style}`;
+                //react.full = `${react.template}\n${react.script}\n${react.style}`;
+                react.full = react.script;
                 // ********************************** //
                 // write files
                 let w_path = path.join(this.x_state.dirs.pages, thefile.file);
@@ -3040,7 +3086,7 @@ export const decorators = [
         // @TODO refactor this for react - AlaSQL in react; should live within a ContextProvider
         this.debug('_readModels');
         this.debug_time({ id: 'readModels' });
-        let modelos = await this.dsl_parser.getNodes({ text: 'modelos', level: 2, icon: 'desktop_new', recurse: true }); //nodes_raw:true	
+        let modelos = await this.dsl_parser.getNodes({ text: 'models', level: 2, icon: 'desktop_new', recurse: true }); //nodes_raw:true	
         let tmp = { appname: this.x_state.config_node.name },
             fields_map = {};
         let resp = {
