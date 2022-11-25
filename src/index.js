@@ -751,7 +751,7 @@ ${this.x_state.dirs.compile_folder}/`;
         let page = this.x_state.pages[thefile.title];
         let camel = require('camelcase');
         if (page) {
-            if (page.tipo == 'componente' && page.params != '') {
+            if (page.type == 'component' && page.params != '') {
                 let argType = {}, title = thefile.title.split(':')[1].trim(), evts = '';
                 //prepare events
                 let events = page.stories['_default'].events;
@@ -875,9 +875,9 @@ ${this.x_state.dirs.compile_folder}/`;
                 }); //.bind(page,directs));
                 react.script += `${directs.join(',')}\n\t}`;
             }
-            // declare props (if page tipo componente)
-            if (page.tipo == 'componente' && page.params != '') {
-                this.debug('- declare componente:props');
+            // declare props (if page type component)
+            if (page.type == 'component' && page.params != '') {
+                this.debug('- declare component:props');
                 if (react.first) react.script += ',\n';
                 react.first = true;
                 let isNumeric = function(n) {
@@ -958,7 +958,7 @@ ${this.x_state.dirs.compile_folder}/`;
                 react.first = true;
                 console.log(page.variables);
                 for (let key in page.variables) {
-                    let def_val = (page.variables[key])?`'${page.variables[key]}'`:`''`;
+                    let def_val = (page.variables[key])?this.jsDump(page.variables[key]):`''`;
                     if (page.var_types[key] && def_val==`''`) {
                         const type = page.var_types[key];
                         if (type=='string') { 
@@ -2740,7 +2740,7 @@ export const decorators = [
         //execute deploy (npm install, etc) AFTER vue compilation (18-4-21: this is new)
         if (!this.errors_found) {
             //only deploy if no errors were found
-            if (!(await this.deploy_module.deploy()) && !this.x_state.central_config.componente) {
+            if (!(await this.deploy_module.deploy())) {
                 this.x_console.outT({ message:'Something went wrong deploying, check the console, fix it and run again.', color:'red' });
                 await this.deploy_module.post();
                 // found errors deploying
@@ -2864,16 +2864,22 @@ export const decorators = [
         await this.createGitIgnore();
         //create @pages/index.js file with references
         let page_exports = '';
+        let comp_exports = '';
         for (let thefile_num in processedNodes)  {
             let thefile = processedNodes[thefile_num];
-            if (thefile.state && thefile.state.current_page) {
+            let page = this.x_state.pages[thefile.title];
+            if (page) {
+                console.log('page',page);
                 const name = thefile.file.split('.')[0];
-                page_exports += `export { ${name} } from './${name}';\n`;
+                if (page.type=='page') {
+                    page_exports += `export { ${name} } from './${name}';\n`;
+                } else if (page.type=='component') {
+                    comp_exports += `export { ${name} } from './${name}';\n`;
+                }
             }
         }
-        if (page_exports!='') {
-            this.writeFile(this.g('@pages/index.js'),page_exports);
-        }
+        if (page_exports!='') this.writeFile(this.g('@pages/index.js'),page_exports);
+        if (comp_exports!='') this.writeFile(this.g('@components/index.js'),comp_exports);        
         //let plugins_info4stories = await this.createNuxtPlugins(false);
         //this.x_console.out({ message:'plugins_info4stories', data:plugins_info4stories });
         /*let add_plugins2story = function(story_vue) {
@@ -2901,16 +2907,22 @@ export const decorators = [
                 let react = await this.getBasicReact(thefile);
                 // @TODO check the vue.template replacements (8-mar-21)
                 // declare server:asyncData
-                this.debug('post-processing internal custom tags');
+                this.debug('post-processing internal custom tags',page);
                 //-23nov22-react = await this.processInternalTags(react, page);
                 // closure ...
                 // **** **** start script wrap **** **** **** **** 
                 let script_imports = '';
                 // header for imports
                 if (page) {
-                    for (let key in page.imports) {
-                        script_imports += `import ${page.imports[key]} from '${key}';\n`;
-                    } //);
+                    // group by key (if multiple of the same pkg)
+                    let grouped = {};
+                    for (let var_ in page.imports) {
+                        if (!grouped[page.imports[var_]]) grouped[page.imports[var_]] = [];
+                        grouped[page.imports[var_]].push(var_);
+                    }
+                    for (let key in grouped) {
+                        script_imports += `import { ${grouped[key].join(',')} } from '${key}';\n`;
+                    }
                 }
                 // export default
                 react.script = `{concepto:import}
@@ -2934,7 +2946,15 @@ export const decorators = [
                 if (page.params=='') {
                     react.script = react.script.replaceAll('{concepto:attributes}','{ children }');
                 } else {
-                    react.script = react.script.replaceAll('{concepto:attributes}',`{ ${page.params.split(',').push('children').join(',')} }`);
+                    let multiparams = page.params;
+                    if (page.params.indexOf(',')==-1) {
+                        multiparams = [page.params];
+                        multiparams.push('children');
+                        multiparams = multiparams.join(',');
+                    } else {
+                        multiparams = page.params.split(',').push('children').join(',');
+                    }
+                    react.script = react.script.replaceAll('{concepto:attributes}',`{ ${multiparams} }`);
                 }
                 // **** **** end script wrap **** **** 
                 // process Mixins
@@ -2956,9 +2976,14 @@ export const decorators = [
                 react.full = react.script;
                 // ********************************** //
                 // write files
-                let w_path = path.join(this.x_state.dirs.pages, thefile.file);
-                this.x_console.outT({ message: `writing react 'page' file ${thefile.file}`, color: 'cyan' });
-                await this.writeFile(w_path, react.full);
+                if (page.type=='page') {
+                    //let w_path = path.join(this.x_state.dirs.pages, thefile.file);
+                    this.x_console.outT({ message: `writing react 'page' file ${thefile.file}`, color: 'cyan' });
+                    await this.writeFile(this.g(`@pages/${thefile.file}`), react.full);
+                } else if (page.type=='component') {
+                    this.x_console.outT({ message: `writing react 'component' file ${thefile.file}`, color: 'cyan' });
+                    await this.writeFile(this.g(`@components/${thefile.file}`), react.full);
+                }
                 //
                 //this.x_console.out({ message: 'vue ' + thefile.title, data: { vue, page_style: page.styles } });
             }.bind(this);
@@ -2969,7 +2994,7 @@ export const decorators = [
                 //process special non 'files'
             } else if (thefile.file.includes('.group')==true) {
                 this.x_console.outT({ message: `segmenting 'group' file ${thefile.file}`, color: 'cyan' });
-                //console.log('@TODO pending support for "grouped" componentes');
+                //console.log('@TODO pending support for "grouped" components');
                 //extract react_file tags
                 this.debug('processing group '+thefile.file+' of files',thefile);
                 let cheerio = require('cheerio');
@@ -3256,7 +3281,7 @@ export const decorators = [
             timeout: 30,
             modelos: 'aurora',
             models: 'aurora',
-            componente: false,
+            component: false,
             storybook: false,
             'keep-alive': true,
             'keep-warm': true,

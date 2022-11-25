@@ -244,7 +244,7 @@ module.exports = async function(context) {
                 // set global page defaults for current page
                 if (!context.x_state.pages[resp.state.current_page]) {
                     context.x_state.pages[resp.state.current_page] = {
-                        tipo: 'page',
+                        type: 'page',
                         acceso: '*',
                         params: '',
                         layout: '',
@@ -272,9 +272,9 @@ module.exports = async function(context) {
                         path: '/' + resp.state.current_page
                     };
                 }
-                if (resp.state.from_def_layout) context.x_state.pages[resp.state.current_page].tipo = 'layout';
+                if (resp.state.from_def_layout) context.x_state.pages[resp.state.current_page].type = 'layout';
                 if (resp.state.from_def_componente) {
-                    context.x_state.pages[resp.state.current_page].tipo = 'componente';
+                    context.x_state.pages[resp.state.current_page].type = 'component';
                     if (resp.state.for_export) {
                         context.x_state.pages[resp.state.current_page].for_export = resp.state.for_export;
                     }
@@ -596,7 +596,7 @@ module.exports = async function(context) {
                 let tag_name = `c-${file_name}`;
                 let var_name = file_name.replaceAll('-', '');
                 // add import to page
-                context.x_state.pages[state.current_page].imports[`~/components/${file_name}/${file_name}.vue`] = var_name;
+                context.x_state.pages[state.current_page].imports[var_name] = `~/components/${file_name}/${file_name}.vue`;
                 context.x_state.pages[state.current_page].components[tag_name] = var_name;
                 // process attributes and write output
                 let params = aliases2params('def_componente_view', node);
@@ -802,19 +802,25 @@ module.exports = async function(context) {
                                                                                             .toLowerCase().trim();
                 if (Object.keys(attrs.config)=='') delete context.x_state.plugins[f_npm].config;
                 if (resp.state.current_page && resp.state.current_page in context.x_state.pages) {
-                    if (context.x_state.plugins[f_npm].customvar && attrs.use!='') {
-                        context.x_state.pages[resp.state.current_page].imports[f_npm] = context.x_state.plugins[f_npm].customvar;
-                        context.x_state.pages[resp.state.current_page].components[tmp.tag] = context.x_state.plugins[f_npm].customvar;
-                    } else {
+                        let assign_ = tmp.tag.trim();
+                        //@idea maybe we could check if assign_ exists on given imports package
                         /*let assign_ = tmp.tag   .replaceAll('-','')
                                                 .replaceAll('_','')
                                                 .replaceAll('/','')
                                                 .replaceAll('.css','')
                                                 .replaceAll('.','_')
-                                                .toLowerCase().trim();*/
-                        //context.x_state.pages[resp.state.current_page].imports[f_npm] = assign_;
+                                                .trim();*/
+                        if (!f_npm && context.x_state.central_config.ui == 'mui') {
+                            //@todo: replace hardcoded mui with value from central config
+                            context.x_state.pages[resp.state.current_page].imports[assign_] = '@mui/material';
+                        } else {
+                            context.x_state.pages[resp.state.current_page].imports[assign_] = f_npm;
+                        }
+                        for (let value_ of attrs.extra_imports) {
+                            context.x_state.pages[resp.state.current_page].imports[value_] = f_npm;
+                        }
                         //context.x_state.pages[resp.state.current_page].components[tmp.tag] = assign_;
-                    }
+                    
                 }
                 //code
                 //if (node.text_note != '') resp.open = `<!-- ${node.text_note.cleanLines()} -->`;
@@ -3382,7 +3388,7 @@ ${tmp.template}
                     text = text.slice(1).slice(0, -1);
                     resp.open += `return ${text};\n`;
                 } else {
-                    if (context.x_state.central_config.idiomas && context.x_state.central_config.idiomas.includes(',')) {
+                    if (context.x_state.central_config.langs && context.x_state.central_config.langs.includes(',')) {
                         // @TODO add support for i18m
                     } else {
                         resp.open += `return '${text}';\n`;
@@ -3496,11 +3502,11 @@ ${tmp.template}
                 tmp.nobj = context.jsDump(obj.state.object);
                 //underscore (seems necesary because vue doesn't detect spreads)
                 if (state.current_page) {
-                    context.x_state.pages[resp.state.current_page].imports['underscore'] = '_';
+                    context.x_state.pages[resp.state.current_page].imports['_'] = 'underscore';
                 } else if (state.current_proxy) {
-                    context.x_state.proxies[resp.state.current_proxy].imports['underscore'] = '_';
+                    context.x_state.proxies[resp.state.current_proxy].imports['_'] = 'underscore';
                 } else if (state.current_store) {
-                    context.x_state.stores[resp.state.current_store].imports['underscore'] = '_';
+                    context.x_state.stores[resp.state.current_store].imports['_'] = 'underscore';
                 }
                 if (node.text_note != '') resp.open = `// ${node.text_note.cleanLines()}\n`;
                 //resp.open = `${tmp.var} = {...${tmp.var},...${tmp.nobj}};\n`;
@@ -3561,12 +3567,12 @@ ${tmp.template}
                 }
                 //vuescript2
                 if (tmp.text.includes('vuescript2')) tmp.text = tmp.text.replaceAll('vuescript2.',`require('vue-script2').`);
-                //underscore
+                //
                 if (tmp.text.includes('_.')) {
                     context.x_state.pages[resp.state.current_page].imports['underscore'] = '_';
                 }
                 /*if (tmp.text.includes('google.')) {
-                    context.x_state.pages[resp.state.current_page].imports['vue2-google-maps'] = '{ gmapApi }';
+                    context.x_state.pages[resp.state.current_page].imports['gmapApi'] = 'vue2-google-maps';
                     resp.open += 'if (!google) var google = gmapApi;\n';
                 }*/
                 //code
@@ -3651,9 +3657,9 @@ ${tmp.template}
                 if (node.text_note != '') resp.open = `// ${node.text_note.cleanLines()}\n`;
                 if (!attr.require) {
                     if ('current_func' in resp.state) {
-                        context.x_state.functions[resp.state.current_func].imports[attr.text] = attr.tipo_;
+                        context.x_state.functions[resp.state.current_func].imports[attr.tipo_] = attr.text;
                     } else {
-                        context.x_state.pages[resp.state.current_page].imports[attr.text] = attr.tipo_;
+                        context.x_state.pages[resp.state.current_page].imports[attr.tipo_] = attr.text;
                     }
                     context.x_state.npm[attr.text] = attr.version;
                 } else {
@@ -4161,7 +4167,7 @@ ${tmp.template}
                                                     .replaceAll('$vars.','this.')
                                                     .replaceAll('$params.','this.')
                                                     .replaceAll('$store.','this.$store.state.');
-                context.x_state.pages[state.current_page].imports['underscore'] = '_';
+                context.x_state.pages[state.current_page].imports['_'] = 'underscore';
                 //search consultar web nodes
                 if (!params[':each'] && sons.length>0) {
                     for (let x of sons) {
@@ -4309,11 +4315,11 @@ ${tmp.template}
                 if (state.from_server) tmp.attr.open = tmp.attr.open.replaceAll('this.','resp.');
                 //add underscore
                 if (state.current_page) {
-                    context.x_state.pages[state.current_page].imports['underscore'] = '_';
+                    context.x_state.pages[state.current_page].imports['_'] = 'underscore';
                 } else if (state.current_proxy) {
-                    context.x_state.proxies[state.current_proxy].imports['underscore'] = '_';
+                    context.x_state.proxies[state.current_proxy].imports['_'] = 'underscore';
                 } else if (state.current_store) {
-                    context.x_state.stores[state.current_store].imports['underscore'] = '_';
+                    context.x_state.stores[state.current_store].imports['_'] = 'underscore';
                 }
                 //code
                 if (node.text_note != '') resp.open += `// ${node.text_note.cleanLines()}\n`;
@@ -4612,11 +4618,9 @@ ${tmp.template}
                 //code
                 //context.x_state.functions[resp.state.current_func].imports['underscore'] = '_';
                 if (state.current_page) {
-                    context.x_state.pages[state.current_page].imports['underscore'] = '_';
-                } else if (state.current_proxy) {
-                    context.x_state.proxies[state.current_proxy].imports['underscore'] = '_';
+                    context.x_state.pages[state.current_page].imports['_'] = 'underscore';
                 } else if (state.current_store) {
-                    context.x_state.stores[state.current_store].imports['underscore'] = '_';
+                    context.x_state.stores[state.current_store].imports['_'] = 'underscore';
                 }
                 if (node.text_note != '') resp.open += `// ${node.text_note.cleanLines()}\n`;
                 if (tmp.var && tmp.var.includes('this.')) {
