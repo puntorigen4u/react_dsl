@@ -956,8 +956,9 @@ ${this.x_state.dirs.compile_folder}/`;
                 let camel = require('camelcase');
                 if (react.first) react.script += ',\n';
                 react.first = true;
+                console.log(page.variables);
                 for (let key in page.variables) {
-                    let def_val = (page.defaults[key])?page.defaults[key]:`''`;
+                    let def_val = (page.variables[key])?`'${page.variables[key]}'`:`''`;
                     if (page.var_types[key] && def_val==`''`) {
                         const type = page.var_types[key];
                         if (type=='string') { 
