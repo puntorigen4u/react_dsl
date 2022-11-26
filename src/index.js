@@ -1434,27 +1434,27 @@ ${cur.attr('name')}: {
         return vue;
     }
 
-    processStyles(vue, page) {
+    processStyles(react, page) {
         let cheerio = require('cheerio');
-        let $ = cheerio.load(vue.template, { ignoreWhitespace: false, xmlMode: true, decodeEntities: false });
-        let styles = $(`page_estilos`).toArray();
+        let $ = cheerio.load(react.template, { ignoreWhitespace: false, xmlMode: true, decodeEntities: false });
+        let styles = $(`page_styles`).toArray();
         if (styles.length > 0) {
             this.debug('post-processing styles');
             let node = $(styles[0]);
             if (node.attr('scoped') && node.attr('scoped') == 'true') {
-                vue.style += `
+                react.style += `
 				<style scoped>
 				${node.text()}
 				</style>`;
             } else {
-                vue.style += `
+                react.style += `
 				<style>
 				${node.text()}
 				</style>`;
             }
             node.remove();
         }
-        vue.template = $.html();
+        react.template = $.html();
         // add page styles (defined in js) to style tag code
         if (Object.keys(page.styles).length > 0) {
             let jss = require('jss').default;
@@ -1463,11 +1463,11 @@ ${cur.attr('name')}: {
             let sheet = jss.createStyleSheet({
                 '@global': page.styles
             });
-            if (!vue.style) vue.style = '';
-            vue.style += `<style>\n${sheet.toString()}</style>`;
+            if (!react.style) vue.style = '';
+            react.style += `<style>\n${sheet.toString()}</style>`;
             //this.debug('JSS sheet',sheet.toString());
         }
-        return vue;
+        return react;
     }
 
     processMixins(vue, page) {
@@ -1491,18 +1491,48 @@ ${cur.attr('name')}: {
         return vue;
     }
 
-    removeRefx(vue) {
+    removeRefx(react) {
         let cheerio = require('cheerio');
-        let $ = cheerio.load(vue.template, { ignoreWhitespace: false, xmlMode: true, decodeEntities: false });
+        let $ = cheerio.load(react.template, { ignoreWhitespace: false, xmlMode: true, decodeEntities: false });
         let refx = $(`*[refx]`).toArray();
         if (refx.length > 0) {
             this.debug('removing refx attributes (internal)');
             refx.map(function(x) {
                 $(x).attr('refx', null);
             });
-            vue.template = $.html();
+            react.template = $.html();
         }
-        return vue;
+        return react;
+    }
+
+    /**                let encrypt = require('encrypt-with-password');
+                const val = encrypt.encryptJSON(this.jsDump(value),'123');
+    */
+    decryptSpecialProps(react) {
+        // react special attributes (js) are encrypted so they don't mess with cheerio
+        let cheerio = require('cheerio');
+        let $ = cheerio.load(react.template, { ignoreWhitespace: false, xmlMode: true, decodeEntities: false });
+        let original = $.html();
+        let replace = {};
+        let encrypt = require('encrypt-with-password');
+        let encrypted_ = $(`*`).filter((index,el)=>{
+            const attribs = $(el).attr();
+            // search partial attributes _encrypt
+            for (let key in attribs) {
+                if (key.indexOf('_encrypt') > -1) {
+                    //decrypt into value
+                    const val = encrypt.decryptJSON(attribs[key],'123');
+                    const key_ = key.replace('_encrypt','');
+                    original = original.replace(`${key}="${attribs[key]}"`,`${key_}={${val}}`);
+                    //replace[`${key}="${attribs[key]}"`] = `${key_}={${val}}`;
+                    return true;
+                }
+            }
+            return false;
+        })// .toArray();
+        react.template = original;
+        //this.debug('applying decryption',replace);
+        return react;
     }
 
     fixVuePaths(vue, page) {
@@ -1868,10 +1898,8 @@ ${cur.attr('name')}: {
         const clientSideEmotionCache = createEmotionCache();
 
         export const App = (props) => {
-        const { Component, emotionCache = clientSideEmotionCache, pageProps } = props;
-
         return (
-            <CacheProvider value={emotionCache}>
+            <CacheProvider value={clientSideEmotionCache}>
             <ThemeProvider theme={appTheme}>
                 <CssBaseline />
                 <div className="container">
@@ -2801,7 +2829,9 @@ export const decorators = [
         let resp = content;
         if (ext=='jsx') {
             try {
-                resp = prettier.format(resp, { parser: 'babel', useTabs:true, singleQuote:true });
+                resp = prettier.format(resp, { 
+                    parser: 'babel', useTabs:true, singleQuote:true, bracketSameLine:true 
+                });
             } catch(ee) {
                 this.debug(`error: could not format the JS file; trying js-beautify`);
                 let beautify = require('js-beautify');
@@ -2811,7 +2841,9 @@ export const decorators = [
         } else if (ext=='js') { // && file.indexOf('pages/')==-1 25nov22
             //dont format js pages (for now 24-11-22)
             try {
-                resp = prettier.format(resp, { parser: 'babel', useTabs:true, singleQuote:true });
+                resp = prettier.format(resp, { 
+                    parser: 'babel', useTabs:true, singleQuote:true, bracketSameLine:true 
+                });
             } catch(ee) {
                 this.debug(`error: could not format the JS file; trying js-beautify`);
                 let beautify = require('js-beautify');
@@ -2895,7 +2927,7 @@ export const decorators = [
             let thefile = processedNodes[thefile_num];
             let page = this.x_state.pages[thefile.title];
             if (page) {
-                console.log('page',page);
+                //console.log('page',page);
                 const name = thefile.file.split('.')[0];
                 if (page.type=='page') {
                     page_exports += `export { ${name} } from './${name}';\n`;
@@ -2928,12 +2960,12 @@ export const decorators = [
             let contenido = thefile.code + '\n';
             let toDisk = async function(thefile) {
                 //@todo transform this whole block into a function (so .grouped) can also called it per file
-                this.debug('processing node ' + thefile.title);
+                this.debug('processing node ' + thefile.title); //, thefile
                 let page = this.x_state.pages[thefile.title];
                 let react = await this.getBasicReact(thefile);
-                // @TODO check the vue.template replacements (8-mar-21)
+                // @TODO check the react.template replacements (8-mar-21)
                 // declare server:asyncData
-                this.debug('post-processing internal custom tags',page);
+                // this.debug('post-processing internal custom tags',page);
                 //-23nov22-react = await this.processInternalTags(react, page);
                 // closure ...
                 // **** **** start script wrap **** **** **** **** 
@@ -2950,6 +2982,16 @@ export const decorators = [
                         script_imports += `import { ${grouped[key].join(',')} } from '${key}';\n`;
                     }
                 }
+                // ************************************
+                // post-process .template
+                // process Styles
+                react = this.processStyles(react, page);
+                // removes refx attributes
+                react = this.removeRefx(react);
+                // apply this as last react.template modification/process
+                // decrypt special attributes into react js (so they don't mess with pre-cheerio parsing)
+                react = this.decryptSpecialProps(react);
+                // ************************************
                 // export default
                 react.script = `import React from 'react';
                 {concepto:import}
@@ -2988,8 +3030,6 @@ export const decorators = [
                 //-23nov22- react = this.processMixins(react, page);
                 // process Styles
                 //-23nov22- react = this.processStyles(react, page);
-                // removes refx attributes
-                //-23nov22- react = this.removeRefx(react);
                 // fix {vuepath:} placeholders
                 //-23nov22- react = this.fixVuePaths(react, page);
                 // process lang files (po)
@@ -3373,6 +3413,9 @@ export const decorators = [
             },
             small: {
                 class: 'caption'
+            },
+            span: {
+                tag_: 'span'
             }
         };
         if (resp['ui'] == 'mui') {
@@ -3391,7 +3434,10 @@ export const decorators = [
                 },
                 small: {
                     variant: 'caption'
-                }
+                },
+                span: {
+                    component:'span'
+                },
             } };
         } else if (resp['ui'] == 'joi') {
             this.x_state.ui = { ...this.x_state.ui, ...uiDefaultState, ...{
@@ -3605,7 +3651,9 @@ export const decorators = [
                 resp.push(`${key}="${value}"`);
             } else if (typeof value === 'object') {
                 //serialize value
-                resp.push(`${key}={${this.jsDump(value)}}`);
+                let encrypt = require('encrypt-with-password');
+                const val = encrypt.encryptJSON(this.jsDump(value),'123');
+                resp.push(`${key}_encrypt="${val}"`);
             }
         }
         return resp.join(' ');

@@ -228,8 +228,8 @@ module.exports = async function(context) {
         //def_view
         //*def_page
         //*def_page_seo
-        //*def_page_estilos
-        //*def_page_estilos_class
+        //*def_page_styles
+        //*def_page_styles_class
 
         'def_page': {
             x_level: '2,3',
@@ -438,7 +438,7 @@ module.exports = async function(context) {
             x_level: '3,4',
             x_icons: 'desktop_new',
             x_text_exact: 'css',
-            hint: 'Definicion local CSSs externos',
+            hint: 'Import external CSS files within page/component',
             func: async function(node, state) {
                 let resp = context.reply_template({
                     state,
@@ -453,28 +453,28 @@ module.exports = async function(context) {
                 return resp;
             }
         },
-        'def_page_estilos': {
+        'def_page_styles': {
             x_level: '3,4',
             x_icons: 'desktop_new',
-            x_text_contains: 'estilos',
+            x_text_contains: 'styles',
             x_or_hasparent: 'def_page,def_componente,def_layout',
             hint: 'Definicion de estilos/clases locales',
             func: async function(node, state) {
                 let resp = context.reply_template({
                     state
                 });
-                let params = {...{scoped:true}, ... aliases2params('def_page_estilos', node)};
-                resp.open = context.tagParams('page_estilos', params, false);
-                resp.close = '</page_estilos>';
+                let params = {...{scoped:true}, ... aliases2params('def_page_styles', node)};
+                resp.open = context.tagParams('page_styles', params, false);
+                resp.close = '</page_styles>';
                 resp.state.from_estilos=true;
                 return resp;
             }
         },
-        'def_page_estilos_class': {
+        'def_page_styles_class': {
             x_level: '4,5',
             x_empty: 'icons',
-            x_all_hasparent: 'def_page_estilos',
-            hint: 'Definicion de clase CSS en template VUE',
+            x_all_hasparent: 'def_page_styles',
+            hint: 'Styles classes defined within react page/component',
             func: async function(node, state) {
                 let resp = context.reply_template({
                     state
@@ -629,7 +629,7 @@ module.exports = async function(context) {
                 resp.open += context.tagParams(tag_name, params, false) + '\n';
                 resp.close = `</${tag_name}>\n`;
                 resp.state.friendly_name = tag_name.split('-').splice(-1)[0].trim();
-                resp.state.from_componente=true;
+                resp.state.from_component=true;
                 return resp;
             }
         },
@@ -1372,8 +1372,8 @@ module.exports = async function(context) {
             x_empty: 'icons',
             x_priority: -5,
             x_or_hasparent: 'def_page,def_componente,def_layout',
-            // @TODO (idea) x_not_hasparent: 'def_toolbar+!def_slot,def_variables,def_page_estilos,def_page_estilos', 
-            hint: 'Texto a mostrar',
+            // @TODO (idea) x_not_hasparent: 'def_toolbar+!def_slot,def_variables,def_page_styles,def_page_styles', 
+            hint: 'Textonly node',
             func: async function(node, state) {
                 let resp = context.reply_template({
                         state
@@ -1411,7 +1411,7 @@ module.exports = async function(context) {
                     return {...resp,...{ valid:false }};
                 } else if ((await context.hasParentID(node.id, 'def_variables'))==true) {
                     return {...resp,...{ valid:false }};
-                } else if ((await context.hasParentID(node.id, 'def_page_estilos'))==true || (await context.hasParentID(node.id, 'def_page_css'))==true) {
+                } else if ((await context.hasParentID(node.id, 'def_page_styles'))==true || (await context.hasParentID(node.id, 'def_page_css'))==true) {
                     return {...resp,...{ valid:false }};
                 } else {
                     if (node.text_note != '') resp.open += `<!-- ${node.text_note.cleanLines()} -->\n`;
@@ -1421,6 +1421,7 @@ module.exports = async function(context) {
                         let lorem = node.text.split(':');
                         tmp.lorem = lorem[lorem.length - 1];
                     }
+                    /*
                     if (node.text.indexOf('numeral(') != -1) {
                         //numeral() filter
                         context.x_state.plugins['vue-numeral-filter'] = {
@@ -1431,7 +1432,7 @@ module.exports = async function(context) {
                             mode: 'client',
                             config: `{ locale: 'es-es' }`
                         };
-                    }
+                    }*/
                     //node styles
                     if (node.text_rich=='') {
                         if (node.font.bold == true) {
@@ -1549,6 +1550,7 @@ module.exports = async function(context) {
                         text = `<small>${text}</small>`;
                     }
                     // - normalize class values (depending on vuetify version)
+                    /*
                     params.class = params.class.map(function(x) {
                         let resp = x;
                         resp.replaceAll('text-h1', 'display-4')
@@ -1564,7 +1566,7 @@ module.exports = async function(context) {
                             .replaceAll('text-caption', 'caption')
                             .replaceAll('text-overline', 'overline')
                         return resp;
-                    });
+                    });*/
                     //normalize params
                     if (params.class && params.class.length==0) delete params.class;
                     if (params.class && params.class.length > 0) params.class = params.class.join(' ');
@@ -1577,7 +1579,16 @@ module.exports = async function(context) {
                             resp.open += text;
                         } else {
                             if (dad_hastextonly==true || (tmp.span && tmp.span==true)) {
-                                resp.open += context.tagParams('span', params) + text + '</span>\n';
+                                let tag_ = context.x_state.ui.textTag;
+                                if (context.x_state.ui.span.tag_) {
+                                    tag_ = context.x_state.ui.span.tag_;
+                                } else {
+                                    params = deepMerge(params,context.x_state.ui.span);
+                                }
+                                if (context.x_state.ui.viewNPM!='') {
+                                    context.x_state.pages[resp.state.current_page].imports[context.x_state.ui.textTag] = context.x_state.ui.viewNPM;
+                                }
+                                resp.open += context.tagParams(tag_, params) + text + '</'+tag_+'>\n';
                             } else if (dad_card_title && dad_card_title==true && !params.class) {
                                 resp.open += text + '\n';
                             } else {
@@ -2171,6 +2182,7 @@ module.exports = async function(context) {
         'def_event_element': {
             x_icons: 'help',
             x_level: '>2',
+            x_not_icons: 'desktop_new',
             x_not_text_contains: ':server,:mounted,condicion si,otra condicion, ',
             hint:  `Evento de un elemento visual (ej. imagen->?click).
                     Se puede enlazar a otro evento de la misma página, en cuyo caso sus atributos se traspasan como parametros.`,
@@ -2196,13 +2208,13 @@ module.exports = async function(context) {
                     return !isNaN(parseFloat(n)) && isFinite(n);
                 };
                 //add event name aliases if not son of def_componente_view
-                if (!state.from_componente) {
+                if (!state.from_component) {
                     if (['post:icon:click','post:icon'].includes(tmp.event_test)==true) params.event = 'click:append';
                     if (['pre:icon:click','pre:icon'].includes(tmp.event_test)==true) params.event = 'click:prepend'; 
                 }
                 params.parent_id = parent_node.id;
                 params.friendly_name = "";
-                //if (!state.from_componente) {
+                //if (!state.from_component) {
                 let normal = require('url-record'), ccase = require('fast-case');
                 let short_event = params.event.split('.')[0].split(':')[0];
                 let tmp_name = '';
