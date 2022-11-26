@@ -220,6 +220,13 @@ module.exports = async function(context) {
                 x_text_contains: 'assets'
             }
         },
+        'def_theme': {...null_template,
+            ... {
+                x_icons: 'desktop_new',
+                x_level: '2',
+                x_text_contains: 'theme'
+            }
+        },
 
         // *******************************
         //  React Pages and View Elements

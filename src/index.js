@@ -13,6 +13,7 @@ import deploy_remote from './deploys/remote'
 import deploy_eb from './deploys/eb'
 import deploy_s3 from './deploys/s3'
 import deploy_ghpages from './deploys/ghpages'
+const deepMerge = require('deepmerge');
 
 export default class react_dsl extends concepto {
 
@@ -216,6 +217,8 @@ export default class react_dsl extends concepto {
         }
         //this.debug('central_config',this.x_state.central_config);
         this.x_state.assets = await this._readAssets();
+        this.x_state.theme = await this._readTheme();
+        //this.debug('theme_node',this.x_state.theme);
         //this.debug('assets_node',this.x_state.assets);
         let target_folders = {
             'src': 'src',
@@ -261,20 +264,6 @@ export default class react_dsl extends concepto {
         // *********************************************
         // install requested modules within config node
         // *********************************************
-        /*if (this.x_state.config_node['favicon']) {
-            //@todo also add the 'favicon' key to HtmlWebPackPlugin node within webpack.config.js file
-            // copy icon to static dir
-            let path = require('path');
-            let source = path.join(this.x_state.dirs.base, this.x_state.config_node['favicon']);
-            let target = this.x_state.dirs.static + 'icon.png';
-            this.debug({ message: `FAVICON ICON dump (copy icon)`, color: `yellow`, data: source });
-            let fs = require('fs').promises;
-            try {
-                await fs.copyFile(source, target);
-            } catch (err_fs) {
-                this.x_console.outT({ message: `error: copying defined favicon`, data: err_fs });
-            }
-        }*/
         // DEFAULT NPM MODULES & PLUGINS if dsl is not 'component' type
         // react_dsl doesn't have 'component' type; any webapp can share components
         this.x_console.outT({ message: `react initialized() ->` });
@@ -1739,26 +1728,28 @@ ${cur.attr('name')}: {
         
         //create styles/theme/theme.js
         //@todo grab values from main node 'styles'
-        this.writeFile(g('@theme/theme.js'),
-        `import { createTheme } from '@mui/material/styles';
+        let material_theme = `import { createTheme } from '@mui/material/styles';
 
-        const appTheme = createTheme({
-          palette: {
-            mode: 'light',
-            primary: {
-              main: '#DCED71',
-            },
-            secondary: {
-              main: '#1E1F24'
-            },
-            tertiary: {
-              main: '#34414B'
-            }
-          },
-        });
+        const appTheme = createTheme({concepto:theme});
         
-        export default appTheme;`);
-
+        export default appTheme;`;
+        let default_theme = {
+            palette: {
+              mode: 'light',
+              primary: {
+                main: '#DCED71',
+              },
+              secondary: {
+                main: '#1E1F24'
+              },
+              tertiary: {
+                main: '#34414B'
+              }
+            },
+        };
+        default_theme = deepMerge(default_theme,this.x_state.theme);
+        material_theme = material_theme.replaceAll('{concepto:theme}',this.jsDump(default_theme));
+        this.writeFile(g('@theme/theme.js'),material_theme);
         //create index.js
         this.writeFile(g('@src/index.js'),`import("./App");\n`);
         //create styles/globals.css
@@ -3257,6 +3248,30 @@ export const decorators = [
         return resp;
     }
 
+    /*
+     * Reads main theme node, and returns object with info
+     */
+    async _readTheme() {
+        let resp = { palette:{} },
+            path = require('path');
+        this.debug('_readTheme');
+        this.debug_time({ id: '_readTheme' });
+        
+        let theme = await this.dsl_parser.getNodes({ text: 'theme', level: 2, icon: 'desktop_new', recurse: true }); //nodes_raw:true
+        if (theme.length > 0) {
+            theme = theme[0];
+            resp.palette = theme.attributes;
+            for (let child of theme.nodes) {
+                if (child.bgcolor!='') {
+                    // assume it's a color
+                    // & merge with child attributes (ex. dark:another_color )
+                    resp.palette[child.text] = deepMerge({ main:child.bgcolor.toUpperCase() },child.attributes);
+                }
+            }
+        } 
+        this.debug_timeEnd({ id: '_readTheme' });
+        return resp;
+    }
 
     /*
      * Reads assets node, and returns object with info
