@@ -176,6 +176,7 @@ export default class react_dsl extends concepto {
         // init react
         // set x_state defaults
         this.x_state = {...this.x_state,...{
+            ui: {},
             plugins: {},
             npm: {},
             dev_npm: {},
@@ -260,8 +261,7 @@ export default class react_dsl extends concepto {
         // *********************************************
         // install requested modules within config node
         // *********************************************
-        // NEXT:ICON
-        if (this.x_state.config_node['favicon']) {
+        /*if (this.x_state.config_node['favicon']) {
             //@todo also add the 'favicon' key to HtmlWebPackPlugin node within webpack.config.js file
             // copy icon to static dir
             let path = require('path');
@@ -274,7 +274,7 @@ export default class react_dsl extends concepto {
             } catch (err_fs) {
                 this.x_console.outT({ message: `error: copying defined favicon`, data: err_fs });
             }
-        }
+        }*/
         // DEFAULT NPM MODULES & PLUGINS if dsl is not 'component' type
         // react_dsl doesn't have 'component' type; any webapp can share components
         this.x_console.outT({ message: `react initialized() ->` });
@@ -1892,8 +1892,8 @@ ${cur.attr('name')}: {
         }
         `);
         // create webpack.config.js
-        this.writeFile(g('@app/webpack.config.js'),
-        `
+        let webpack = {};
+        webpack.template = `
         const HtmlWebPackPlugin = require("html-webpack-plugin");
         const ModuleFederationPlugin = require("webpack/lib/container/ModuleFederationPlugin");
         
@@ -1969,13 +1969,39 @@ ${cur.attr('name')}: {
                 },
               },
             }),
-            new HtmlWebPackPlugin({
-              template: "./src/public/index.html",
-              favicon: "./src/public/favicon.ico",
-            }),
+            new HtmlWebPackPlugin({webpack:html}),
           ],
         };        
-        `);
+        `;
+        //
+        webpack.HtmlWebPackPlugin = {
+            template: "./src/public/index.html",
+        };
+        // copy the 'favicon' file, and add it to HtmlWebPackPlugin node within webpack.config.js file
+        if (this.x_state.config_node['favicon']) {
+            // copy icon to static dir
+            let path = require('path');
+            let source = path.join(this.x_state.dirs.base, this.x_state.config_node['favicon']);
+            let target = this.x_state.dirs.static + 'icon.png'; //@todo get extension from source
+            webpack.favicon = target;
+            this.debug({ message: `FAVICON ICON dump (copy icon)`, color: `yellow`, data: source });
+            let fs = require('fs').promises;
+            try {
+                await fs.copyFile(source, target);
+                //@todo absolute target to relative format
+                //assign to webpack.HtmlWebPackPlugin.favicon
+                webpack.HtmlWebPackPlugin.favicon = target; 
+
+            } catch (err_fs) {
+                this.x_console.outT({ message: `error: copying defined favicon`, data: err_fs });
+            }
+        }
+        // create webpack.config.js
+        // replace placeholders with values
+        webpack.template = webpack.template.replace('{webpack:html}',this.jsDump(webpack.HtmlWebPackPlugin));
+        // write file
+        this.writeFile(g('@app/webpack.config.js'),webpack.template);
+        
         // create .env file
         const env = {};
         const ini = require('ini');
@@ -2925,7 +2951,8 @@ export const decorators = [
                     }
                 }
                 // export default
-                react.script = `{concepto:import}
+                react.script = `import React from 'react';
+                {concepto:import}
 
                 export const {concepto:name} = ({concepto:attributes}) => {
                     {concepto:variables}
@@ -3334,9 +3361,48 @@ export const decorators = [
                 } 
             });
         }
+        // assign defaults for UI libraries as global state
+        let uiDefaultState = {
+            'textTag': 'div',
+            'viewNPM': '',
+            bold: { //gets merged on textTags
+                class: 'font-weight-bold'
+            },
+            italic: {
+                class: 'font-italic'
+            },
+            small: {
+                class: 'caption'
+            }
+        };
+        if (resp['ui'] == 'mui') {
+            this.x_state.ui = { ...this.x_state.ui, ...uiDefaultState, ...{ 
+                'textTag': 'Typography',
+                'viewNPM': '@mui/material',
+                bold: {
+                    sx: {
+                        fontWeight:'bold'
+                    }
+                },
+                italic: {
+                    sx: {
+                        fontStyle:'italic'
+                    }
+                },
+                small: {
+                    variant: 'caption'
+                }
+            } };
+        } else if (resp['ui'] == 'joi') {
+            this.x_state.ui = { ...this.x_state.ui, ...uiDefaultState, ...{
+                'textTag': 'Text',
+                'viewNPM': '@joi/components'
+            } };
+        }
         // return
         return resp;
     }
+
 
     /* helper for readConfig and secrets extraction */
     configFromNode(resp,key) {
@@ -3539,7 +3605,7 @@ export const decorators = [
                 resp.push(`${key}="${value}"`);
             } else if (typeof value === 'object') {
                 //serialize value
-                resp.push(`${key}="${this.jsDump(value)}"`);
+                resp.push(`${key}={${this.jsDump(value)}}`);
             }
         }
         return resp.join(' ');
