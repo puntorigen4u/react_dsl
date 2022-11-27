@@ -250,7 +250,7 @@ export default class react_dsl extends concepto {
             this.x_theme = x_theme;
         }
         await this.x_theme.install(); // install required npm pkgs
-        await this.x_theme.autocomplete(); // add autocomplete definitions
+        await this.x_theme.generateAutoComplete(); // add autocomplete definitions
         await this.x_theme.defaultState(); // set theme definitions
         // read modelos node (DB definitions)
         this.x_state.models = await this._readModels(); //alias: database tables

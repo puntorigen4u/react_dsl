@@ -32,7 +32,7 @@ export class joy extends base_ui {
 
     async autocomplete() {
         // insert associated ui autocompletion calls here
-        await this.context.addAutocompleteDefinition({   
+        return [{   
             text:'Button',
             icons:['idea'],
             level:[3,4],
@@ -41,7 +41,7 @@ export class joy extends base_ui {
                 //all keys are optional - empty by default
                 'variant': { type:'string', default:'solid', hint:'' },
             } 
-        });
+        }];
     }
 
     async defaultState() {
@@ -49,6 +49,7 @@ export class joy extends base_ui {
         this.context.x_state.ui = { ...this.context.x_state.ui, ...{ 
             'textTag': 'Typography',
             'viewNPM': '@mui/joy',
+            'iconNPM': '@mui/icons-material',
             bold: {
                 sx: {
                     fontWeight:'bold'

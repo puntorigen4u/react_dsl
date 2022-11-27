@@ -41,9 +41,10 @@ export class base_ui {
     }
 
     async autocomplete() {
-        // insert associated ui autocompletion calls here
+        // return associated ui autocompletion calls here
+        return [];
         /**
-         * await this.context.addAutocompleteDefinition({   
+         * return [{   
                 text:'AppBar',
                 icons:['idea'],
                 level:[3,4],
@@ -52,12 +53,36 @@ export class base_ui {
                     //all keys are optional - empty by default
                     'color': { type:'string', default:'primary', hint:'Defines the color of the AppBar' },
                 } 
-            });
-         */
+        }];
+        */
+    }
+
+    async generateAutoComplete() {
+        const auto = await this.autocomplete();
+        for (let key in auto) {
+            await this.context.addAutocompleteDefinition(auto[key]);
+        }
     }
 
     async defaultState() {
         // overwrites defaults for UI libraries as global state
+        this.context.x_state.ui = { ...this.context.x_state.ui, ...{
+            'textTag': 'div',
+            'iconNPM': '',
+            'viewNPM': '',
+            bold: { //gets merged on textTags
+                class: 'font-weight-bold'
+            },
+            italic: {
+                class: 'font-italic'
+            },
+            small: {
+                class: 'caption'
+            },
+            span: {
+                tag_: 'span'
+            }
+        } };
     }
 
     async AppImports() {

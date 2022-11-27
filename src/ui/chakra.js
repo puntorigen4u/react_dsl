@@ -1,15 +1,15 @@
 
 /*
-* MUI UI: A class that adds support for MUI UI Framework on React DSL
-* @name 	mui
-* @module 	mui
+* CHAKRA UI: A class that adds support for CHAKRA-UI Framework on React DSL
+* @name 	chakra
+* @module 	chakra
 **/
 import { base_ui } from './base_ui'
 
-export class mui extends base_ui {
+export class chakra extends base_ui {
 
     constructor({ context={} }={}) {
-        super({ context, name:'mui' });
+        super({ context, name:'chakra' });
     }
 
     //****************************
@@ -23,24 +23,87 @@ export class mui extends base_ui {
 
     async install() {
         // add anything that needs to be installed
-        this.context.x_state.npm['@emotion/react'] = '^11.10.5';
-        this.context.x_state.npm['@emotion/styled'] = '^11.10.5';
-        this.context.x_state.npm['@fontsource/roboto'] = '^4.5.8';
-        this.context.x_state.npm['@mui/icons-material'] = '^5.10.14';
-        this.context.x_state.npm['@mui/material'] = '^5.10.14';
-        this.context.x_state.npm['normalize.css'] = '^8.0.1';
+        this.context.x_state.npm['@chakra-ui/react'] = '*';
+        this.context.x_state.npm['@chakra-ui/icons'] = '*';
+        this.context.x_state.npm['@emotion/react'] = '^11';
+        this.context.x_state.npm['@emotion/styled'] = '^11';
+        this.context.x_state.npm['framer-motion'] = '^6';
+        this.context.x_state.npm['@fontsource/open-sans'] = '*';
+        this.context.x_state.npm['@fontsource/raleway'] = '*';
     }
 
     async autocomplete() {
         // insert associated ui autocompletion calls here
+        const types = {
+            colors: [
+                'whiteAlpha','blackAlpha','gray','red','orange','yellow','green','teal','blue','cyan','purple','pink',
+                'linkedin','facebook','messenger','whatsapp','twitter','telegram'
+            ],
+            sizes: [
+                'lg','md','sm','xs'
+            ],
+            variant: [
+                'outline','ghost','link','solid','unstyled'
+            ]
+        }
         return [{   
-            text:'AppBar',
+            text:'Button',
+            type:'system', // system, component (user, gets erased on each cache clear) - refers to a subfolder on .autocomplete
             icons:['idea'],
-            level:[3,4],
-            hint:'Top navigation bar',
+            level:[3,4,5,6,7,8],
+            hint:'Button component is used to trigger an action or event, such as submitting a form, opening a Dialog, canceling an action, or performing a delete operation.',
             attributes:{
                 //all keys are optional - empty by default
-                'color': { type:'string', default:'primary', hint:'Defines the color of the AppBar' },
+                'colorScheme': { 
+                    type: types.colors.join(', '), 
+                    default: 'grey', 
+                    hint: '' 
+                },
+                'iconSpacing': {
+                    type: 'SystemProps["marginRight"]',
+                    hint: `The space between the button icon and label`
+                },
+                isActive: {
+                    type: 'boolean',
+                    hint: 'If true, the button will be styled in its active state.',
+                },
+                isDisabled: {
+                    type: 'boolean',
+                    hint: 'If true, the button will be disabled.',
+                },
+                isLoading: {
+                    type: 'boolean',
+                    hint: 'If true, the button will show a spinner.',
+                },
+                '{icon:list}leftIcon': {
+                    type: '{icon:idea}icon:x', //{icon:x} -> is replaced by autocomplete with the icon name
+                    hint: `If added, the button will show an icon before the button's label`,
+                },
+                loadingText: {
+                    type: 'string',
+                    hint: `The label to show in the button when isLoading is true If no text is passed, it only shows the spinner`,
+                },
+                '{icon:list}rightIcon': {
+                    type: `{icon:idea}icon:x`,
+                    hint: `If added, the button will show an icon after the button's label.`
+                },
+                size: {
+                    type: types.sizes.join(', '),
+                    default: 'md'
+                },
+                '{icon:list}spinner': {
+                    type: '{icon:idea}icon:x',
+                    hint: `Replace the spinner component when isLoading is set to true`
+                },
+                spinnerPlacement: {
+                    type: 'end, start',
+                    default: 'start',
+                    hint: `It determines the placement of the spinner when isLoading is true`
+                },
+                variant: {
+                    type: types.variant.join(', '),
+                    default: 'solid',
+                }
             } 
         }];
     }
@@ -48,13 +111,11 @@ export class mui extends base_ui {
     async defaultState() {
         // overwrites defaults for UI libraries as global state
         this.context.x_state.ui = { ...this.context.x_state.ui, ...{ 
-            'textTag': 'Typography',
-            'viewNPM': '@mui/material',
-            'iconNPM': '@mui/icons-material',
+            'textTag': 'Text',
+            'viewNPM': '@chakra-ui/react',
+            'iconNPM': '@chakra-ui/icons',
             bold: {
-                sx: {
-                    fontWeight:'bold'
-                }
+                fontWeight: 'bold'
             },
             italic: {
                 sx: {
@@ -65,25 +126,16 @@ export class mui extends base_ui {
                 variant: 'caption'
             },
             span: {
-                component:'span'
+                as:'span'
             },
         } };
     }
 
     async AppImports() {
         // whatever is returned is added to App.jsx header
-        return `import 'normalize.css';
-        import '@fontsource/roboto/300.css';
-        import '@fontsource/roboto/400.css';
-        import '@fontsource/roboto/500.css';
-        import '@fontsource/roboto/700.css';
-        
-        import { CacheProvider } from '@emotion/react';
-        import { ThemeProvider, CssBaseline } from '@mui/material';
+        return `
+        import { extendTheme, ChakraProvider } from '@mui/material';
         import appTheme from './styles/theme/theme';
-        import createEmotionCache from './utility/createEmotionCache';
-
-        const clientSideEmotionCache = createEmotionCache();
         `;
     }
 
@@ -91,12 +143,9 @@ export class mui extends base_ui {
         //returns a wrapper for App.jsx template content
         return {
             open:   
-            `<CacheProvider value={clientSideEmotionCache}>
-			    <ThemeProvider theme={appTheme}>
-				    <CssBaseline />`,
+            `<ChakraProvider theme={theme}>`,
             close:  
-            `</ThemeProvider>
-            </CacheProvider>`
+            `</ChakraProvider>`
         }
     }
 

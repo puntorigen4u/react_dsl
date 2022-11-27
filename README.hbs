@@ -11,7 +11,7 @@
 </p>
 
 ## Description
-<a href="https://nextjs.org/">MF + ReactJS</a> module for <a href="https://www.npmjs.com/package/@concepto/cli">Concepto DSL</a>
+<a href="https://reactjs.org/">MF + ReactJS</a> module for <a href="https://www.npmjs.com/package/@concepto/cli">Concepto DSL</a>
 
 ## Installation
 
