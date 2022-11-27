@@ -1,6 +1,6 @@
 {
   "name": "@concepto/react",
-  "version": "1.9.408",
+  "version": "0.0.1",
   "description": "Concepto DSL - Visually create and maintain modern Node.js based web apps (@react)",
   "keywords": [
     "creador",
@@ -9,7 +9,8 @@
     "conceptodsl",
     "dsl",
     "react",
-    "nextjs"
+    "module federation",
+    "mf"
   ],
   "license": "MIT",
   "author": "Pablo Schaffner",

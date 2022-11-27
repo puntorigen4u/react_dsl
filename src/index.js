@@ -13,8 +13,9 @@ import deploy_remote from './deploys/remote'
 import deploy_eb from './deploys/eb'
 import deploy_s3 from './deploys/s3'
 import deploy_ghpages from './deploys/ghpages'
-const deepMerge = require('deepmerge');
+import * as Theme from './ui'
 
+const deepMerge = require('deepmerge');
 export default class react_dsl extends concepto {
 
     constructor(file, config = {}) {
@@ -23,6 +24,7 @@ export default class react_dsl extends concepto {
             class: 'react',
             debug: true
         };
+        
         let nuevo_config = {...my_config, ...config };
         super(file, nuevo_config); //,...my_config
         // custom dsl_git version
@@ -233,6 +235,23 @@ export default class react_dsl extends concepto {
             'secrets': 'secrets',
         };
         this.x_state.dirs = await this._appFolders(target_folders,compile_folder);
+        // init x_theme
+        //this.debug('xtheme!!',[this.x_state.central_config.ui,Theme.default.base_ui.default]);
+        //this.debug('xtheme',Theme);
+        if (this.x_state.central_config.ui in Theme) {
+            const xtheme = Theme[this.x_state.central_config.ui];
+            const x_theme = new xtheme({ context:this });
+            //console.log('x_theme',x_theme);
+            this.x_theme = new xtheme({ context:this });
+        } else {
+            const xtheme = Theme.base_ui;
+            const x_theme = new xtheme({ context:this });
+            //console.log('x_theme',x_theme);
+            this.x_theme = x_theme;
+        }
+        await this.x_theme.install(); // install required npm pkgs
+        await this.x_theme.autocomplete(); // add autocomplete definitions
+        await this.x_theme.defaultState(); // set theme definitions
         // read modelos node (DB definitions)
         this.x_state.models = await this._readModels(); //alias: database tables
         //is local server running? if so, don't re-launch it
@@ -268,12 +287,11 @@ export default class react_dsl extends concepto {
         // react_dsl doesn't have 'component' type; any webapp can share components
         this.x_console.outT({ message: `react initialized() ->` });
         this.x_state.npm['@babel/runtime'] = '^7.13.10';
-        this.x_state.npm['@emotion/react'] = '^11.10.5';
+        /*this.x_state.npm['@emotion/react'] = '^11.10.5';
         this.x_state.npm['@emotion/styled'] = '^11.10.5';
         this.x_state.npm['@fontsource/roboto'] = '^4.5.8';
         this.x_state.npm['@mui/icons-material'] = '^5.10.14';
-        this.x_state.npm['@mui/material'] = '^5.10.14';
-        this.x_state.npm['normalize.css'] = '^8.0.1';
+        this.x_state.npm['@mui/material'] = '^5.10.14';*/
         this.x_state.npm['react'] = '^17.0.2';
         this.x_state.npm['react-dom'] = '^17.0.2';
         // axios
@@ -1725,47 +1743,15 @@ ${cur.attr('name')}: {
     async createSystemFiles() {
         const path = require('path');
         const g = this.g;
+        await this.x_theme.generateFiles();
         
-        //create styles/theme/theme.js
-        //@todo grab values from main node 'styles'
-        let material_theme = `import { createTheme } from '@mui/material/styles';
-
-        const appTheme = createTheme({concepto:theme});
-        
-        export default appTheme;`;
-        let default_theme = {
-            palette: {
-              mode: 'light',
-              primary: {
-                main: '#DCED71',
-              },
-              secondary: {
-                main: '#1E1F24'
-              },
-              tertiary: {
-                main: '#34414B'
-              }
-            },
-        };
-        default_theme = deepMerge(default_theme,this.x_state.theme);
-        material_theme = material_theme.replaceAll('{concepto:theme}',this.jsDump(default_theme));
-        this.writeFile(g('@theme/theme.js'),material_theme);
+        //generate common files
         //create index.js
         this.writeFile(g('@src/index.js'),`import("./App");\n`);
         //create styles/globals.css
         //@todo grab values from main node 'styles'
-        this.writeFile(g('@styles/globals.css'),
-        `body {
-            font-family: Arial, Helvetica, sans-serif;
-          }
-          
-          .container {
-            font-size: 3rem;
-            margin: auto;
-            max-width: 800px;
-            margin-top: 20px;
-          }
-        `);
+        const globalsCSS = await this.x_theme.globalCSS();
+        this.writeFile(g('@styles/globals.css'), globalsCSS);
         //create public/index.html
         //@todo add website title, modify lang, add meta data and any additional head requirements
         //add conifg:meta data
@@ -1828,6 +1814,7 @@ ${cur.attr('name')}: {
             meta_head += `></script>\n`;
         }
         //
+        const indexHeadTheme = await this.x_theme.indexHtmlHead();
         this.writeFile(g('@public/index.html'),
         `
         <!DOCTYPE html>
@@ -1837,14 +1824,7 @@ ${cur.attr('name')}: {
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <title>${(this.x_state.config_node['nuxt:title'])?this.x_state.config_node['nuxt:title']:this.x_state.central_config.apptitle}</title>
-          <link
-            rel="stylesheet"
-            href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap"
-          />
-          <link
-            rel="stylesheet"
-            href="https://fonts.googleapis.com/icon?family=Material+Icons"
-          />
+          ${indexHeadTheme}
           ${meta_head}
         </head>
         
@@ -1854,54 +1834,37 @@ ${cur.attr('name')}: {
         
         </html>        
         `);
-        //create createEmotionCache.js
-        this.writeFile(g('@utility/createEmotionCache.js'),
-        `import createCache from '@emotion/cache';
-
-        const createEmotionCache = () => {
-          return createCache({ key: 'css', prepend: true });
-        };
         
-        export default createEmotionCache;
-        `);
         //@pages/index.js created on onCreateFiles
         //create App.jsx
         //@todo obtain files and routes from map and use React Router
-        this.writeFile(g('@src/App.jsx'),
+        let appJSX =
         `import React from "react";
         import ReactDOM from "react-dom";
-        import 'normalize.css';
-        import '@fontsource/roboto/300.css';
-        import '@fontsource/roboto/400.css';
-        import '@fontsource/roboto/500.css';
-        import '@fontsource/roboto/700.css';
-        
-        import { CacheProvider } from '@emotion/react';
-        import { ThemeProvider, CssBaseline } from '@mui/material';
-        import appTheme from './styles/theme/theme';
-        import createEmotionCache from './utility/createEmotionCache';
+        {appJSX.imports}
 
         // @todo add a key for each main page
         import { Home } from "./pages";
 
         import "./styles/globals.css";
-        
-        const clientSideEmotionCache = createEmotionCache();
 
         export const App = (props) => {
         return (
-            <CacheProvider value={clientSideEmotionCache}>
-            <ThemeProvider theme={appTheme}>
-                <CssBaseline />
-                <div className="container">
-                <Home/>
-                </div>
-            </ThemeProvider>
-            </CacheProvider>
+            {appJSX.open}
+            <div className="container">
+            <Home/>
+            </div>
+            {appJSX.close}
         )
         };
         ReactDOM.render(<App />, document.getElementById("app"));
-        `);
+        `;
+        const JSX_imports = await this.x_theme.AppImports();
+        appJSX = appJSX.replace('{appJSX.imports}', JSX_imports);
+        const JSX_wrap = await this.x_theme.AppWrap();
+        appJSX = appJSX.replace('{appJSX.open}', JSX_wrap.open);
+        appJSX = appJSX.replace('{appJSX.close}', JSX_wrap.close);
+        this.writeFile(g('@src/App.jsx'), appJSX);
         // create .babelrc
         this.writeFile(g('@app/.babelrc'),`{
             "presets": ["@babel/preset-react", "@babel/preset-env"],
@@ -3403,6 +3366,7 @@ export const decorators = [
         }
         if (!resp[':cache']) this.x_config.cache = false; // disables cache when processing nodes (@todo)
         //@temp 23nov22
+        /*
         if (resp['ui'] == 'mui') {
             // add autocomplete definitions for all MUI components
             // just a demo for now
@@ -3415,8 +3379,9 @@ export const decorators = [
                     'color': { values:'primary,secondary', hint:'Defines the color of the AppBar' },
                 } 
             });
-        }
+        }*/
         // assign defaults for UI libraries as global state
+        /*
         let uiDefaultState = {
             'textTag': 'div',
             'viewNPM': '',
@@ -3459,7 +3424,7 @@ export const decorators = [
                 'textTag': 'Text',
                 'viewNPM': '@joi/components'
             } };
-        }
+        }*/
         // return
         return resp;
     }
