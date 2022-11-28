@@ -1654,7 +1654,8 @@ module.exports = async function(context) {
                     params.target_id = parent.id;
                 }
                 if (node.bgcolor!='') {
-                    params.attr_bgcolor = node.bgcolor.toUpperCase();
+                    //add as 'special' attribute
+                    params.x_attr_bgcolor = node.bgcolor.toUpperCase();
                 }
                 resp.open += context.tagParams('def_param',params,false)+'\n';
                 resp.close = '</def_param>\n';

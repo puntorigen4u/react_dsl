@@ -1023,11 +1023,14 @@ ${this.x_state.dirs.compile_folder}/`;
         };
         nodes.map(function(elem) {
             let value = {};
+            let special_x = {};
             let cur = $(elem);
             const attribs = cur.attr();
             // search partial attributes attr_?
             for (let key in attribs) {
-                if (key.indexOf('attr_') > -1) {
+                if (key.indexOf('x_attr') > -1) {
+                    special_x[key.replace('x_attr_', '')] = cur.attr(key);
+                } else if (key.indexOf('attr_') > -1) {
                     value[key.replace('attr_', '')] = cur.attr(key);
                 }
             }
@@ -1036,16 +1039,16 @@ ${this.x_state.dirs.compile_folder}/`;
                 //@todo replace with extractJS npm module                
                 if (value[key].length>2 && value[key][0]=='{' && value[key][value[key].length-1]=='}') {
                     let tmp = value[key].replace('{', '').replace('}', '');
-                    if (tmp in value) {
-                        value[key] = value[tmp];
-                        delete value[tmp];
+                    if (tmp in special_x) {
+                        value[key] = special_x[tmp];
+                        //delete value[tmp];
                     }
                 }
             } 
-            // if value obj has single key, re-asign as direct value
+            // if value obj has single special key (and no attribs), re-asign as direct value
             if (!value.is_object) {            
-                if (Object.keys(value).length == 1) {
-                    value = value[Object.keys(value)[0]];
+                if (Object.keys(special_x).length==1 && Object.keys(value).length == 0) {
+                    value = special_x[Object.keys(special_x)[0]];
                 }
             }
             // delete meta keys from value
