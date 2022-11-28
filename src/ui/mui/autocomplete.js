@@ -1,10 +1,13 @@
-export const autocomplete = () =>{
+const Icons = require('@mui/icons-material');
+
+export const autocomplete = async(parent) =>{
     // insert associated ui autocompletion calls here
     const types = {
         // type = system, component (user, gets erased on each cache clear) - refers to a subfolder on .autocomplete
         type: 'system', 
         colors: [
-            'primary','secondary','tertriary'
+            'primary','secondary','tertriary',
+            'success', 'action', 'disabled'
         ],
         sizes: [
             'lg','md','sm','xs'
@@ -140,6 +143,77 @@ export const autocomplete = () =>{
             }}
         }
     };
+
+    // ****************************
+    // ICON: dynamic import from @mui/icons-material
+    // also adds the x_command 'icon:Outlined:name' support
+    // console.log('material-icons',Object.keys(Icons));
+    // variation 3: grouped by styles -> icon:Outlined:x, icon:Rounded:x, icon:Sharp:x, icon:TwoTone:x
+    // ****************************
+    let icons_grouped_by_style = {}; 
+    const icons_styles = ['Outlined','Rounded','Sharp','TwoTone'];
+    Object.keys(Icons).forEach(icon=>{
+        for (let style of icons_styles){
+            if (icon.indexOf(style)>-1) {
+                if (!icons_grouped_by_style[style]) icons_grouped_by_style[style] = []
+                icons_grouped_by_style[style].push(icon.replace(style,''));
+            }
+        }
+    });
+    //console.log('icons_grouped_by_style',icons_grouped_by_style);
+    for (let style in icons_grouped_by_style){
+        components['icon:'+style+':'] = {
+            ...types.base,
+            ...{
+                hint: `<b>Material UI Icon</b> - style <b>${style}</b>\n
+                       \n<u>Use any of these icons:</u>\n\n 
+                       ${icons_grouped_by_style[style].join(', ')}\n\n`,
+                attributes: {
+                    '{icon:list}sx': {
+                        type: 'object',
+                        hint: 'The sx prop is a shortcut for defining custom styles that has access to the theme.'
+                    },
+                    color: {
+                        type: types.colors.join(', '),
+                        hint: 'The color of the icon.'
+                    },
+                    fontSize: {
+                        type: types.sizes.join(', '),
+                        hint: 'The fontSize applied to the icon.',
+                    }
+                }
+            }
+        };
+        //add the dynamic x_command support
+        await parent.addCommand({
+            [`def_icon_${style.toLowerCase()}`]: {
+                x_level: '>3',
+                x_icons: 'idea',
+                x_text_contains: `icon:${style}:`,
+                x_or_hasparent: 'def_page,def_componente,def_layout',
+                hint: `Adds an ${style} Material UI Icon`,
+                func: async function(node, state) {
+                    let resp = parent.context.reply_template({ state });
+                    let icon = node.text.replace(`icon:${style}:`,'');
+                    let attrs = { refx:node.id };
+                    if (resp.state.current_page && resp.state.current_page in parent.context.x_state.pages) {
+                        // add import to page (if its a page)
+                        parent.context.x_state.pages[resp.state.current_page].imports[icon] = parent.context.x_state.ui.iconNPM;   
+                    }
+                    Object.keys(node.attributes).forEach(attr=>{
+                        attrs[attr] = node.attributes[attr];
+                    });
+                    resp.open += parent.context.tagParams(icon, attrs, false) + '\n';
+                    resp.close += `</${icon}>\n`;
+                    resp.state.friendly_name = icon;
+                    //resp.state.from_script = false;
+                    //console.log(`def_icon_${style}`,attrs);
+                    return resp;
+                }
+            }
+        });
+        //
+    }
 
     // ****************************
     // FORMS:

@@ -32,9 +32,9 @@ export class chakra extends base_ui {
         this.context.x_state.npm['@fontsource/raleway'] = '*';
     }
 
-    autocomplete() {
+    async autocomplete() {
         // moved contents to external file: chakra/autocomplete.js
-        return autocomplete();
+        return await autocomplete();
     }
 
     async defaultState() {

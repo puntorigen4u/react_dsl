@@ -32,9 +32,9 @@ export class mui extends base_ui {
         this.context.x_state.npm['normalize.css'] = '^8.0.1';
     }
 
-    autocomplete() {
+    async autocomplete() {
         // moved contents to external file: mui/autocomplete.js
-        return autocomplete();
+        return await autocomplete(this);
     }
 
     async defaultState() {

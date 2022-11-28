@@ -8,6 +8,7 @@ export class base_ui {
 	constructor({ context={}, name='base_ui' }={}) {
         this.context = context;
         this.name = name;
+        this.i_commands = {};
         this.deepMerge = require('deepmerge');
     }
 
@@ -23,7 +24,7 @@ export class base_ui {
     async install() {
     }
 
-    autocomplete() {
+    async autocomplete() {
         // return associated ui autocompletion calls here
         return {};
         /**
@@ -43,7 +44,7 @@ export class base_ui {
     }
 
     async generateAutoComplete() {
-        const auto = this.autocomplete();
+        const auto = await this.autocomplete();
         const tags = Object.keys(auto).map((tag) => {
             return {
                 text: tag,
@@ -56,6 +57,45 @@ export class base_ui {
         for (let key in tags) {
             await this.context.addAutocompleteDefinition(tags[key]);
         }
+    }
+
+    async addCommand(command) {
+        this.i_commands = {...this.i_commands, ...command};
+        /*
+        {
+            'def_imagen': {
+                x_level: '>3',
+                x_icons: 'idea',
+                x_text_exact: 'imagen',
+                //x_not_empty: 'attributes[:src]',
+                x_or_hasparent: 'def_page,def_componente,def_layout',
+                hint: 'Agrega la imagen indicada en el lugar.',
+                func: async function(node, state) {
+                    let resp = context.reply_template({ state });
+                    let params = {...{ alt:'' },...aliases2params('def_imagen', node)};
+                    //code
+                    if (node.text_note != '') resp.open += `<!-- ${node.text_note.cleanLines()} -->`;
+                    //translate asset if defined
+                    for (let x in params) {
+                        if (params[x] && params[x].includes('assets:')) {
+                            params[x] = context.getAsset(params[x], 'js');
+                        }
+                        await setImmediatePromise(); //@improved
+                    }
+                    resp.open += context.tagParams('v-img',params,false)+'\n';
+                    resp.close = '</v-img>';
+                    resp.state.friendly_name = 'imagen';
+                    return resp;
+                }
+            }
+        }
+        /**
+         * add a command to the context; can overwrite default commands or extend them
+         * this.context.x_commands has all loaded commands
+         */    }
+    
+    async addCustomCommands() {
+        this.context.addCommands(this.i_commands);
     }
 
     async defaultState() {

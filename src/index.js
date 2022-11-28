@@ -253,6 +253,7 @@ export default class react_dsl extends concepto {
         await this.x_theme.install(); // install required npm pkgs
         await this.x_theme.generateAutoComplete(); // add autocomplete definitions
         await this.x_theme.defaultState(); // set theme definitions
+        await this.x_theme.addCustomCommands(); // add custom commands of UI
         // read modelos node (DB definitions)
         this.x_state.models = await this._readModels(); //alias: database tables
         //is local server running? if so, don't re-launch it
@@ -288,11 +289,6 @@ export default class react_dsl extends concepto {
         // react_dsl doesn't have 'component' type; any webapp can share components
         this.x_console.outT({ message: `react initialized() ->` });
         this.x_state.npm['@babel/runtime'] = '^7.13.10';
-        /*this.x_state.npm['@emotion/react'] = '^11.10.5';
-        this.x_state.npm['@emotion/styled'] = '^11.10.5';
-        this.x_state.npm['@fontsource/roboto'] = '^4.5.8';
-        this.x_state.npm['@mui/icons-material'] = '^5.10.14';
-        this.x_state.npm['@mui/material'] = '^5.10.14';*/
         this.x_state.npm['react'] = '^17.0.2';
         this.x_state.npm['react-dom'] = '^17.0.2';
         // axios
@@ -1021,7 +1017,9 @@ ${this.x_state.dirs.compile_folder}/`;
             }
             return new_;
         };
-        nodes.map(function(elem) {
+        //nodes.map(function(elem) {
+        for (let i = 0; i < nodes.length; i++) {
+            const elem = nodes[i];
             let value = {};
             let special_x = {};
             let cur = $(elem);
@@ -1034,15 +1032,19 @@ ${this.x_state.dirs.compile_folder}/`;
                     value[key.replace('attr_', '')] = cur.attr(key);
                 }
             }
-            // do {value} mapping to key values
+            // do {node.value} mapping to key values
+            const extract = require('extractjs')({
+                startExtract: '-',
+                endExtract: '-',
+            });
             for (let key in value) {
-                //@todo replace with extractJS npm module                
-                if (value[key].length>2 && value[key][0]=='{' && value[key][value[key].length-1]=='}') {
-                    let tmp = value[key].replace('{', '').replace('}', '');
-                    if (tmp in special_x) {
-                        value[key] = special_x[tmp];
-                        //delete value[tmp];
-                    }
+                //@todo replace with extractJS npm module
+                const special = extract(`{node.-key-}`, value[key]);
+                if (special.key && special.key in special_x) {
+                    value[key] = special_x[special.key];
+                } else if (special.key) {
+                    //assigned as empty if special key value doesn't exist but value has a special key defined 
+                    value[key] = '';
                 }
             } 
             // if value obj has single special key (and no attribs), re-asign as direct value
@@ -1066,6 +1068,13 @@ ${this.x_state.dirs.compile_folder}/`;
                     //wrap contents in a function within the value of the parent attribute
                     val = self.serializeComplexAttr(`()=>{ ${cur.html()} }`);
                 } else if (cur.attr('is_view')) {
+                    //before processing, check if within us we need to call ourselfs 
+                    //to process other internal tags
+                    if (inner.indexOf('def_param')!=-1) {
+                        console.log('calling self.processInternalTags()');
+                        inner = (await self.processInternalTags({template:inner},page)).template;
+                        console.log('after self.processInternalTags()',inner);
+                    }
                     inner = removeSpecialRefx(inner);
                     val = self.serializeComplexAttr(inner);
                 } else {
@@ -1076,7 +1085,7 @@ ${this.x_state.dirs.compile_folder}/`;
                 target_.attr(cur.attr('param_name')+'_encrypt', val);
             }
             cur.remove(); // remove ourselfs
-        });
+        };
         react.template = $.html();
         /* 
         if (nodes.length > 0) vue.script += `}\n`;
@@ -1564,6 +1573,20 @@ ${cur.attr('name')}: {
         return vue;
     }
 
+    removeSpecialRefx(content) {
+        //removes attrs refx from given content without using cheerio
+        const extract = require('extractjs')();
+        let new_ = content;
+        let elements = extract(`refx="{id}"`,content);
+        if (elements.id) {
+            new_ = new_.replace(`refx="${elements.id}"`,''); 
+            if (new_.indexOf('refx=')!=-1) {
+                new_ = this.removeSpecialRefx(new_);
+            }
+        }
+        return new_;
+    };
+
     removeRefx(react) {
         let cheerio = require('cheerio');
         let $ = cheerio.load(react.template, { ignoreWhitespace: false, xmlMode: true, decodeEntities: false });
@@ -1578,34 +1601,23 @@ ${cur.attr('name')}: {
         return react;
     }
 
-    /**                let encrypt = require('encrypt-with-password');
-                const val = encrypt.encryptJSON(this.jsDump(value),'123');
-    */
     decryptSpecialProps(react) {
         // react special attributes (js) are encrypted so they don't mess with cheerio
         this.debug('deserializing complex attrs');
-        let cheerio = require('cheerio');
-        let $ = cheerio.load(react.template, { ignoreWhitespace: false, xmlMode: true, decodeEntities: false });
-        let original = $.html();
-        let replace = {};
-        let encrypt = require('encrypt-with-password');
-        let encrypted_ = $(`*`).filter((index,el)=>{
-            const attribs = $(el).attr();
-            // search partial attributes _encrypt
-            for (let key in attribs) {
-                if (key.indexOf('_encrypt') > -1) {
-                    //decrypt into value
-                    const val = encrypt.decryptJSON(attribs[key],'123');
-                    const key_ = key.replace('_encrypt','');
-                    original = original.replace(`${key}="${attribs[key]}"`,`${key_}={${val}}`);
-                    //replace[`${key}="${attribs[key]}"`] = `${key_}={${val}}`;
-                    //return true;
-                }
+        // replace cheerio with extractjs
+        const extract = require('extractjs')();
+        let new_ = react.template;
+        let elements = extract(` {prop}_encrypt="{encrypted}"`,react.template);
+        if (elements.prop && elements.encrypted) {
+            let decrypt = require('encrypt-with-password');
+            let val = decrypt.decryptJSON(elements.encrypted,'123');
+            new_ = new_.replace(`${elements.prop}_encrypt="${elements.encrypted}"`,`${elements.prop}={${val}}`);
+            let more = extract(` {prop}_encrypt="{encrypted}"`,new_);
+            if (more.prop && more.encrypted) {
+                new_ = this.decryptSpecialProps({...react,...{ template:new_ }}).template;
             }
-            //return false;
-        })// .toArray();
-        react.template = original;
-        return react;
+        }
+        return {...react,...{ template:new_ }};
     }
 
     fixVuePaths(vue, page) {
@@ -3008,6 +3020,7 @@ export const decorators = [
                 react = this.processStyles(react, page);
                 // removes refx attributes
                 react = this.removeRefx(react);
+                //react.template = this.removeSpecialRefx(react.template);
                 // apply this as last react.template modification/process
                 // decrypt special attributes into react js (so they don't mess with pre-cheerio parsing)
                 react = this.decryptSpecialProps(react);

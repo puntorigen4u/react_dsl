@@ -693,6 +693,8 @@ module.exports = async function(context) {
         'def_view': {
             x_level: '>2',
             x_icons: 'idea',
+            x_not_icons: 'list',
+            x_not_text_contains: 'icon:',
             hint: 'ReactJS view instance',
             func: async function(node, state) {
                 let resp = context.reply_template({
@@ -1654,12 +1656,16 @@ module.exports = async function(context) {
                     params.target_id = parent.id;
                 }
                 if (node.bgcolor!='') {
-                    //add as 'special' attribute
+                    //add as 'special' node attributes
                     params.x_attr_bgcolor = node.bgcolor.toUpperCase();
+                }
+                if (node.color!='') {
+                    //add as 'special' node attributes
+                    params.x_attr_color = node.color.toUpperCase();
                 }
                 resp.open += context.tagParams('def_param',params,false)+'\n';
                 resp.close = '</def_param>\n';
-                if (node.nodes_raw.length>1 && node.icons.includes('idea')) {
+                if (node.getNodes().length>1 && node.icons.includes('idea')) {
                     // if there's more than 1 child and icon idea, then wrap within a React.Fragment
                     resp.open += '<>';
                     resp.close = '</>'+resp.close;
