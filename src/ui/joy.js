@@ -30,18 +30,19 @@ export class joy extends base_ui {
         this.context.x_state.npm['@mui/icons-material'] = '^5.10.14';
     }
 
-    async autocomplete() {
+    autocomplete() {
         // insert associated ui autocompletion calls here
-        return [{   
-            text:'Button',
-            icons:['idea'],
-            level:[3,4],
-            hint:'Adds a JOY button',
-            attributes:{
-                //all keys are optional - empty by default
-                'variant': { type:'string', default:'solid', hint:'' },
-            } 
-        }];
+        return {
+            'Button': {
+                icons:['idea'],
+                level:[3,4],
+                hint:'Adds a JOY button',
+                attributes:{
+                    //all keys are optional - empty by default
+                    'variant': { type:'string', default:'solid', hint:'' },
+                } 
+            }
+        };
     }
 
     async defaultState() {

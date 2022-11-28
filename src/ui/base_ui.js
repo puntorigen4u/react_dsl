@@ -9,23 +9,6 @@ export class base_ui {
         this.context = context;
         this.name = name;
         this.deepMerge = require('deepmerge');
-        this.context.x_state.app_jsx_header = ''; // for defining custom imports within App.jsx
-        this.context.x_state.ui = {...this.context.x_state.ui, ...{
-            'textTag': 'div',
-            'viewNPM': '',
-            bold: { //attributes get merged on textTags (if no class defined)
-                class: 'font-weight-bold'
-            },
-            italic: {
-                class: 'font-italic'
-            },
-            small: {
-                class: 'caption'
-            },
-            span: {
-                tag_: 'span'
-            }
-        }};
     }
 
     //****************************
@@ -40,11 +23,12 @@ export class base_ui {
     async install() {
     }
 
-    async autocomplete() {
+    autocomplete() {
         // return associated ui autocompletion calls here
-        return [];
+        return {};
         /**
-         * return [{   
+         * return {
+         *  'AppBar': { 
                 text:'AppBar',
                 icons:['idea'],
                 level:[3,4],
@@ -52,15 +36,25 @@ export class base_ui {
                 attributes:{
                     //all keys are optional - empty by default
                     'color': { type:'string', default:'primary', hint:'Defines the color of the AppBar' },
-                } 
-        }];
+                }
+            } 
+        };
         */
     }
 
     async generateAutoComplete() {
-        const auto = await this.autocomplete();
-        for (let key in auto) {
-            await this.context.addAutocompleteDefinition(auto[key]);
+        const auto = this.autocomplete();
+        const tags = Object.keys(auto).map((tag) => {
+            return {
+                text: tag,
+                icons: auto[tag].icons,
+                level: auto[tag].level,
+                hint: auto[tag].hint,
+                attributes: auto[tag].attributes
+            }
+        });
+        for (let key in tags) {
+            await this.context.addAutocompleteDefinition(tags[key]);
         }
     }
 

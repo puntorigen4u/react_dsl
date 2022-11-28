@@ -31,18 +31,19 @@ export class mui extends base_ui {
         this.context.x_state.npm['normalize.css'] = '^8.0.1';
     }
 
-    async autocomplete() {
+    autocomplete() {
         // insert associated ui autocompletion calls here
-        return [{   
-            text:'AppBar',
-            icons:['idea'],
-            level:[3,4],
-            hint:'Top navigation bar',
-            attributes:{
-                //all keys are optional - empty by default
-                'color': { type:'string', default:'primary', hint:'Defines the color of the AppBar' },
+        return {
+            'AppBar': {
+                icons:['idea'],
+                level:[3,4],
+                hint:'Top navigation bar',
+                attributes:{
+                    //all keys are optional - empty by default
+                    'color': { type:'string', default:'primary', hint:'Defines the color of the AppBar' },
+                }
             } 
-        }];
+        };
     }
 
     async defaultState() {

@@ -5,7 +5,7 @@
 * @module 	chakra
 **/
 import { base_ui } from './base_ui'
-
+import { autocomplete } from './chakra/autocomplete';
 export class chakra extends base_ui {
 
     constructor({ context={} }={}) {
@@ -32,80 +32,9 @@ export class chakra extends base_ui {
         this.context.x_state.npm['@fontsource/raleway'] = '*';
     }
 
-    async autocomplete() {
-        // insert associated ui autocompletion calls here
-        const types = {
-            colors: [
-                'whiteAlpha','blackAlpha','gray','red','orange','yellow','green','teal','blue','cyan','purple','pink',
-                'linkedin','facebook','messenger','whatsapp','twitter','telegram'
-            ],
-            sizes: [
-                'lg','md','sm','xs'
-            ],
-            variant: [
-                'outline','ghost','link','solid','unstyled'
-            ]
-        }
-        return [{   
-            text:'Button',
-            type:'system', // system, component (user, gets erased on each cache clear) - refers to a subfolder on .autocomplete
-            icons:['idea'],
-            level:[3,4,5,6,7,8],
-            hint:'Button component is used to trigger an action or event, such as submitting a form, opening a Dialog, canceling an action, or performing a delete operation.',
-            attributes:{
-                //all keys are optional - empty by default
-                'colorScheme': { 
-                    type: types.colors.join(', '), 
-                    default: 'grey', 
-                    hint: '' 
-                },
-                'iconSpacing': {
-                    type: 'SystemProps["marginRight"]',
-                    hint: `The space between the button icon and label`
-                },
-                isActive: {
-                    type: 'boolean',
-                    hint: 'If true, the button will be styled in its active state.',
-                },
-                isDisabled: {
-                    type: 'boolean',
-                    hint: 'If true, the button will be disabled.',
-                },
-                isLoading: {
-                    type: 'boolean',
-                    hint: 'If true, the button will show a spinner.',
-                },
-                '{icon:list}leftIcon': {
-                    type: '{icon:idea}icon:x', //{icon:x} -> is replaced by autocomplete with the icon name
-                    hint: `If added, the button will show an icon before the button's label`,
-                },
-                loadingText: {
-                    type: 'string',
-                    hint: `The label to show in the button when isLoading is true If no text is passed, it only shows the spinner`,
-                },
-                '{icon:list}rightIcon': {
-                    type: `{icon:idea}icon:x`,
-                    hint: `If added, the button will show an icon after the button's label.`
-                },
-                size: {
-                    type: types.sizes.join(', '),
-                    default: 'md'
-                },
-                '{icon:list}spinner': {
-                    type: '{icon:idea}icon:x',
-                    hint: `Replace the spinner component when isLoading is set to true`
-                },
-                spinnerPlacement: {
-                    type: 'end, start',
-                    default: 'start',
-                    hint: `It determines the placement of the spinner when isLoading is true`
-                },
-                variant: {
-                    type: types.variant.join(', '),
-                    default: 'solid',
-                }
-            } 
-        }];
+    autocomplete() {
+        // moved contents to external file: chakra/autocomplete.js
+        return autocomplete();
     }
 
     async defaultState() {

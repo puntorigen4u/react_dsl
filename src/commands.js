@@ -1441,6 +1441,7 @@ module.exports = async function(context) {
                         };
                     }*/
                     //node styles
+                    console.log('x_state.ui',context.x_state.ui);
                     if (node.text_rich=='') {
                         if (node.font.bold == true) {
                             if (context.x_state.ui.bold.class) {
