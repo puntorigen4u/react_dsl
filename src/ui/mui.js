@@ -5,6 +5,7 @@
 * @module 	mui
 **/
 import { base_ui } from './base_ui'
+import { autocomplete } from './mui/autocomplete';
 
 export class mui extends base_ui {
 
@@ -32,18 +33,8 @@ export class mui extends base_ui {
     }
 
     autocomplete() {
-        // insert associated ui autocompletion calls here
-        return {
-            'AppBar': {
-                icons:['idea'],
-                level:[3,4],
-                hint:'Top navigation bar',
-                attributes:{
-                    //all keys are optional - empty by default
-                    'color': { type:'string', default:'primary', hint:'Defines the color of the AppBar' },
-                }
-            } 
-        };
+        // moved contents to external file: mui/autocomplete.js
+        return autocomplete();
     }
 
     async defaultState() {

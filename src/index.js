@@ -990,19 +990,64 @@ ${this.x_state.dirs.compile_folder}/`;
         return react;
     }
 
-    async processInternalTags(vue, page) {
+    async processInternalTags(react, page) {
         let cheerio = require('cheerio');
-        //console.log('PABLO beforeInteralTags:',{ template:vue.template, script:vue.script });
-        let $ = cheerio.load(vue.template, { ignoreWhitespace: false, xmlMode: true, decodeEntities: false });
+        //console.log('PABLO beforeInteralTags:',{ template:react.template, script:react.script });
+        let $ = cheerio.load(react.template, { ignoreWhitespace: false, xmlMode: true, decodeEntities: false });
         //console.log('PABLO after:',$.html()); 
-        //return vue;
+        //return react;
         //
-        let nodes = $(`server_asyncdata`).toArray();
-        if (nodes.length > 0) this.debug('post-processing server_asyncdata tag');
-        if (nodes.length > 0 && vue.first) vue.script += ',\n';
-        vue.first = true;
+        let nodes = $(`def_param`).toArray();
+        if (nodes.length > 0) this.debug('post-processing def_param tags');
+        const self = this;
+        let encrypt = require('encrypt-with-password');
         nodes.map(function(elem) {
+            let value = {};
             let cur = $(elem);
+            const attribs = cur.attr();
+            // search partial attributes attr_?
+            for (let key in attribs) {
+                if (key.indexOf('attr_') > -1) {
+                    value[key.replace('attr_', '')] = cur.attr(key);
+                }
+            }
+            // do {value} mapping to key values
+            for (let key in value) {
+                if (value[key].length>2 && value[key][0]=='{' && value[key][value[key].length-1]=='}') {
+                    let tmp = value[key].replace('{', '').replace('}', '');
+                    if (tmp in value) {
+                        value[key] = value[tmp];
+                        delete value[tmp];
+                    }
+                }
+            } 
+            // if value obj has single key, re-asign as direct value
+            if (!value.is_object) {            
+                if (Object.keys(value).length == 1) {
+                    value = value[Object.keys(value)[0]];
+                }
+            }
+            // delete meta keys from value
+            delete value['is_object']; 
+            delete value['is_function'];
+            // get target node
+            let target_node = $(`*[refx=${cur.attr('target_id')}]`).toArray();
+            if (target_node.length != -1) {
+                let target_ = $(target_node[0]);
+                //build value for attr
+                let val = '';
+                if (cur.attr('is_function')) {
+                    //wrap contents in a function within the value of the parent attribute
+                    val = encrypt.encryptJSON(`()=>{ ${cur.html()} }`,'123');
+                } else {
+                    //assign 'value' to parent 'name' attr
+                    val = encrypt.encryptJSON(self.jsDump(value),'123');
+                }
+                //encrypt value for attr
+                target_.attr(cur.attr('param_name')+'_encrypt', val);
+            }
+            cur.remove(); // remove ourselfs
+            /*
             let name = cur.attr('return') ? cur.attr('return') : '';
             vue.script += `async asyncData({ req, res, params }) {\n`;
             vue.script += ` if (!process.server) { const req={}, res={}; }\n`;
@@ -1010,9 +1055,10 @@ ${this.x_state.dirs.compile_folder}/`;
             vue.script += ` ${elem.children[0].data}`;
             vue.script += ` return ${name};\n`;
             vue.script += `}\n`;
-            cur.remove();
+            cur.remove();*/
         });
-        vue.template = $.html();
+        react.template = $.html();
+        /* 
         if (nodes.length > 0) vue.script += `}\n`;
         // process ?mounted event
         nodes = $(`vue\_mounted`).toArray();
@@ -1437,8 +1483,8 @@ ${cur.attr('name')}: {
 						   }`;
             vue.template = $.html(); // apply changes to template
         }
-        /* */
-        return vue;
+        */
+        return react;
     }
 
     processStyles(react, page) {
@@ -1532,10 +1578,10 @@ ${cur.attr('name')}: {
                     const key_ = key.replace('_encrypt','');
                     original = original.replace(`${key}="${attribs[key]}"`,`${key_}={${val}}`);
                     //replace[`${key}="${attribs[key]}"`] = `${key_}={${val}}`;
-                    return true;
+                    //return true;
                 }
             }
-            return false;
+            //return false;
         })// .toArray();
         react.template = original;
         //this.debug('applying decryption',replace);
@@ -2919,8 +2965,8 @@ export const decorators = [
                 let react = await this.getBasicReact(thefile);
                 // @TODO check the react.template replacements (8-mar-21)
                 // declare server:asyncData
-                // this.debug('post-processing internal custom tags',page);
-                //-23nov22-react = await this.processInternalTags(react, page);
+                this.debug('post-processing internal custom tags');
+                await this.processInternalTags(react, page);
                 // closure ...
                 // **** **** start script wrap **** **** **** **** 
                 let script_imports = '';
