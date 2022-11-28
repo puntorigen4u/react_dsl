@@ -16,6 +16,7 @@ import deploy_ghpages from './deploys/ghpages'
 import * as Theme from './ui'
 
 const deepMerge = require('deepmerge');
+
 export default class react_dsl extends concepto {
 
     constructor(file, config = {}) {
@@ -550,6 +551,13 @@ export default class react_dsl extends concepto {
         //end
     }
 
+    //'serializeComplexAttr' encrypts value to be treated as a complex script within a tag attribute
+    // method 'decryptSpecialProps' deserializes them
+    serializeComplexAttr(value) {
+        const encrypt = require('encrypt-with-password');
+        return encrypt.encryptJSON(value,'123');
+    };
+
     //.gitignore helper
     async createGitIgnore() {
         this.debug('writing .gitignore files');
@@ -1000,7 +1008,19 @@ ${this.x_state.dirs.compile_folder}/`;
         let nodes = $(`def_param`).toArray();
         if (nodes.length > 0) this.debug('post-processing def_param tags');
         const self = this;
-        let encrypt = require('encrypt-with-password');
+        const removeSpecialRefx = (content) => {
+            //removes attrs refx from given content without using cheerio
+            const extract = require('extractjs')();
+            let new_ = content;
+            let elements = extract(`refx="{id}"`,content);
+            if (elements.id) {
+                new_ = new_.replace(`refx="${elements.id}"`,''); 
+                if (new_.indexOf('refx=')!=-1) {
+                    new_ = removeSpecialRefx(new_);
+                }
+            }
+            return new_;
+        };
         nodes.map(function(elem) {
             let value = {};
             let cur = $(elem);
@@ -1013,6 +1033,7 @@ ${this.x_state.dirs.compile_folder}/`;
             }
             // do {value} mapping to key values
             for (let key in value) {
+                //@todo replace with extractJS npm module                
                 if (value[key].length>2 && value[key][0]=='{' && value[key][value[key].length-1]=='}') {
                     let tmp = value[key].replace('{', '').replace('}', '');
                     if (tmp in value) {
@@ -1030,32 +1051,28 @@ ${this.x_state.dirs.compile_folder}/`;
             // delete meta keys from value
             delete value['is_object']; 
             delete value['is_function'];
+            delete value['is_view'];
             // get target node
             let target_node = $(`*[refx=${cur.attr('target_id')}]`).toArray();
             if (target_node.length != -1) {
-                let target_ = $(target_node[0]);
                 //build value for attr
+                let target_ = $(target_node[0]);
                 let val = '';
+                let inner = cur.html();
                 if (cur.attr('is_function')) {
                     //wrap contents in a function within the value of the parent attribute
-                    val = encrypt.encryptJSON(`()=>{ ${cur.html()} }`,'123');
+                    val = self.serializeComplexAttr(`()=>{ ${cur.html()} }`);
+                } else if (cur.attr('is_view')) {
+                    inner = removeSpecialRefx(inner);
+                    val = self.serializeComplexAttr(inner);
                 } else {
                     //assign 'value' to parent 'name' attr
-                    val = encrypt.encryptJSON(self.jsDump(value),'123');
+                    val = self.serializeComplexAttr(self.jsDump(value));
                 }
                 //encrypt value for attr
                 target_.attr(cur.attr('param_name')+'_encrypt', val);
             }
             cur.remove(); // remove ourselfs
-            /*
-            let name = cur.attr('return') ? cur.attr('return') : '';
-            vue.script += `async asyncData({ req, res, params }) {\n`;
-            vue.script += ` if (!process.server) { const req={}, res={}; }\n`;
-            //vue.script += ` ${cur.text()}`;
-            vue.script += ` ${elem.children[0].data}`;
-            vue.script += ` return ${name};\n`;
-            vue.script += `}\n`;
-            cur.remove();*/
         });
         react.template = $.html();
         /* 
@@ -1563,6 +1580,7 @@ ${cur.attr('name')}: {
     */
     decryptSpecialProps(react) {
         // react special attributes (js) are encrypted so they don't mess with cheerio
+        this.debug('deserializing complex attrs');
         let cheerio = require('cheerio');
         let $ = cheerio.load(react.template, { ignoreWhitespace: false, xmlMode: true, decodeEntities: false });
         let original = $.html();
@@ -1584,7 +1602,6 @@ ${cur.attr('name')}: {
             //return false;
         })// .toArray();
         react.template = original;
-        //this.debug('applying decryption',replace);
         return react;
     }
 

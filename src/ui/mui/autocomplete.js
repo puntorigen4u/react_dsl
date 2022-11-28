@@ -170,7 +170,7 @@ export const autocomplete = () =>{
                     type: 'boolean',
                     hint: 'If true, the button will show a spinner.',
                 },
-                '{icon:list}leftIcon': {
+                '{icon:list}{icon:idea}leftIcon': {
                     type: '{icon:idea}icon:x', //{icon:x} -> is replaced by autocomplete with the icon name
                     hint: `If added, the button will show an icon before the button's label`,
                 },
@@ -178,7 +178,7 @@ export const autocomplete = () =>{
                     type: 'string',
                     hint: `The label to show in the button when isLoading is true If no text is passed, it only shows the spinner`,
                 },
-                '{icon:list}rightIcon': {
+                '{icon:list}{icon:idea}rightIcon': {
                     type: `{icon:idea}icon:x`,
                     hint: `If added, the button will show an icon after the button's label.`
                 },
@@ -186,7 +186,7 @@ export const autocomplete = () =>{
                     type: types.sizes.join(', '),
                     default: 'md'
                 },
-                '{icon:list}spinner': {
+                '{icon:list}{icon:idea}spinner': {
                     type: '{icon:idea}icon:x',
                     hint: `Replace the spinner component when isLoading is set to true`
                 },
@@ -235,7 +235,7 @@ export const autocomplete = () =>{
                     default: '',
                     hint: 'If `true`, the checkbox will be initially checked.',
                 },
-                '{icon:list}icon': {                        
+                '{icon:list}{icon:idea}icon': {                        
                     type: `{icon:idea}icon:x`,
                     default: 'CheckboxIcon',
                     hint: `The checked icon to use.`

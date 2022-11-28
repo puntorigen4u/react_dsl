@@ -1639,10 +1639,13 @@ module.exports = async function(context) {
                     params.is_object = true;
                 }
                 if (node.nodes_raw.length>0) {
-                    params.is_function = true;
                     if (node.icons.includes('help')) {
                         //if node includes icons list+help, children are included as the content of a function
+                        params.is_function = true;
                         resp.state.from_script=true; //or from_function=true
+                    } else if (node.icons.includes('idea')) {
+                        params.is_view = true;
+                        resp.state.from_script=false;
                     }
                 }
                 params.param_name = node.text; 
@@ -1655,6 +1658,11 @@ module.exports = async function(context) {
                 }
                 resp.open += context.tagParams('def_param',params,false)+'\n';
                 resp.close = '</def_param>\n';
+                if (node.nodes_raw.length>1 && node.icons.includes('idea')) {
+                    // if there's more than 1 child and icon idea, then wrap within a React.Fragment
+                    resp.open += '<>';
+                    resp.close = '</>'+resp.close;
+                }
                 resp.state.from_slot=true;
                 return resp;
             }
@@ -2116,9 +2124,9 @@ module.exports = async function(context) {
                 //code
                 params.n_params = params.n_params.join(',');
                 params.v_params = params.v_params.join(',');
-                resp.open = context.tagParams('vue_event_element', params, false)+'<!--';
+                resp.open = context.tagParams('react_event_element', params, false)+'{/*';
                 if (node.text_note != '') resp.open += `// ${node.text_note.cleanLines()}\n`;
-                resp.close = '--></vue_event_element>';
+                resp.close = '*/}</react_event_element>';
                 resp.state.from_script=true;
                 return resp;
             }
