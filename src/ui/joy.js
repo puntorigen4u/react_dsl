@@ -51,6 +51,7 @@ export class joy extends base_ui {
             'textTag': 'Typography',
             'viewNPM': '@mui/joy',
             'iconNPM': '@mui/icons-material',
+            textSimpleIfParentView: [],
             bold: {
                 sx: {
                     fontWeight:'bold'

@@ -7,13 +7,13 @@ export const autocomplete = async(parent) =>{
         type: 'system', 
         colors: [
             'primary','secondary','tertriary',
-            'success', 'action', 'disabled'
+            'success', 'error', 'info', 'warning'
         ],
         sizes: [
-            'lg','md','sm','xs'
+            'small, medium, large'
         ],
         variant: [
-            'outline','ghost','link','solid','unstyled'
+            'contained','outlined','text'
         ],
         all_levels: [3,4,5,6,7,8,9,10],
     };
@@ -194,7 +194,7 @@ export const autocomplete = async(parent) =>{
                 hint: `Adds an ${style} Material UI Icon`,
                 func: async function(node, state) {
                     let resp = parent.context.reply_template({ state });
-                    let icon = node.text.replace(`icon:${style}:`,'');
+                    let icon = node.text.replace(`icon:${style}:`,'')+style;
                     let attrs = { refx:node.id };
                     if (resp.state.current_page && resp.state.current_page in parent.context.x_state.pages) {
                         // add import to page (if its a page)
@@ -220,58 +220,92 @@ export const autocomplete = async(parent) =>{
     components.Button = {
         ...components.Box,
         ...{
-            hint:'Button component is used to trigger an action or event, such as submitting a form, opening a Dialog, canceling an action, or performing a delete operation.', 
+            hint:'Buttons allow users to take actions, and make choices, with a single tap.', 
             attributes:{
-                'colorScheme': { 
+                'color': { 
                     //all keys are optional - empty by default
                     type: types.colors.join(', '), 
-                    default: 'grey', 
-                    hint: '' 
+                    default: 'primary', 
+                    hint: 'The color of the component. It supports both default and custom theme colors.' 
                 },
-                'iconSpacing': {
+                '{icon:list}classes': {
                     //type: systemProp["marginRight"].type,
-                    hint: `The space between the button icon and label`
+                    type: 'object',
+                    hint: `Override or extend the styles applied to the component.`
                 },
-                isActive: {
-                    type: 'boolean',
-                    hint: 'If true, the button will be styled in its active state.',
-                },
-                isDisabled: {
-                    type: 'boolean',
-                    hint: 'If true, the button will be disabled.',
-                },
-                isLoading: {
-                    type: 'boolean',
-                    hint: 'If true, the button will show a spinner.',
-                },
-                '{icon:list}{icon:idea}leftIcon': {
-                    type: '{icon:idea}icon:x', //{icon:x} -> is replaced by autocomplete with the icon name
-                    hint: `If added, the button will show an icon before the button's label`,
-                },
-                loadingText: {
+                'component': {
                     type: 'string',
-                    hint: `The label to show in the button when isLoading is true If no text is passed, it only shows the spinner`,
+                    hint: `The component used for the root node. Either a string to use a HTML element or a component.`,
+                    default: 'Button'
                 },
-                '{icon:list}{icon:idea}rightIcon': {
-                    type: `{icon:idea}icon:x`,
-                    hint: `If added, the button will show an icon after the button's label.`
+                'disabled': {
+                    type: 'boolean',
+                    default: false,
+                    hint: `If true, the button will be disabled.`
                 },
-                size: {
-                    type: types.sizes.join(', '),
-                    default: 'md'
+                'disableElevation': {
+                    type: 'boolean',
+                    default: false,
+                    hint: `If true, no elevation is used.`
                 },
-                '{icon:list}{icon:idea}spinner': {
+                'disableFocusRipple': {
+                    type: 'boolean',
+                    default: false,
+                    hint: `If true, the keyboard focus ripple will be disabled.`
+                },
+                'disableRipple': {
+                    type: 'boolean',
+                    default: false,
+                    hint: `If true, the ripple effect is disabled.`,
+                },
+                '{icon:list}{icon:idea}endIcon': {
                     type: '{icon:idea}icon:x',
-                    hint: `Replace the spinner component when isLoading is set to true`
+                    hint: `Element placed after the children.`
                 },
-                spinnerPlacement: {
-                    type: 'end, start',
-                    default: 'start',
-                    hint: `It determines the placement of the spinner when isLoading is true`
+                'fullWidth': {
+                    type: 'boolean',
+                    default: false,
+                    hint: `If true, the button will take up the full width of its container.`,
+                },
+                'href': {
+                    type: 'string',
+                    hint: `The URL to link to when the button is clicked. If defined, an 'a' element will be used as the root node.`,
+                },
+                'size': {
+                    type: types.sizes.join(', '),
+                    default: 'medium',
+                    hint: `The size of the button.`
+                },
+                '{icon:list}{icon:idea}startIcon': {
+                    type: '{icon:idea}icon:x',
+                    hint: `Element placed before the children.`
+                },
+                '{icon:list}sx': {
+                    type: 'object',
+                    hint: `The sx prop is a shortcut for defining custom styles that has access to the theme.`
                 },
                 variant: {
                     type: types.variant.join(', '),
-                    default: 'solid',
+                    default: 'text',
+                    hint: `The variant to use.`
+                }
+            }
+        }
+    };
+    components.LoadingButton = {
+        ...components.Button,
+        ...{
+            hint:'The loading buttons can show loading state and disable interactions.',
+            attributes:{
+                'loading': {
+                    type: 'boolean',
+                    default: false,
+                    hint: `If true, the button will be in a loading state.`
+                },
+                '{icon:list}loadingIndicator': {
+                    type: '{icon:idea}Element',
+                    default: '{icon:idea}CircularProgress[color="inherit" size={16}]',
+                    hint: `Element placed before the children if the button is in loading state.`
                 }
             }
         }

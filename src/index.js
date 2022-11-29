@@ -296,6 +296,7 @@ export default class react_dsl extends concepto {
         // default devDependencies
         this.x_state.dev_npm['@babel/core'] = '^7.15.8';
         this.x_state.dev_npm['@babel/plugin-transform-runtime'] = '^7.15.8';
+        this.x_state.dev_npm['@babel/babel-plugin-direct-import'] = '^7.15.8';
         this.x_state.dev_npm['@babel/preset-env'] = '^7.15.8';
         this.x_state.dev_npm['@babel/preset-react'] = '^7.14.5';
         this.x_state.dev_npm['autoprefixer'] = '^10.1.0';
@@ -1944,13 +1945,14 @@ ${cur.attr('name')}: {
         appJSX = appJSX.replace('{appJSX.close}', JSX_wrap.close);
         this.writeFile(g('@src/App.jsx'), appJSX);
         // create .babelrc
-        this.writeFile(g('@app/.babelrc'),`{
-            "presets": ["@babel/preset-react", "@babel/preset-env"],
-            "plugins": [
-               ["@babel/transform-runtime"]
+        const default_babel = {
+            presets: ["@babel/preset-react", "@babel/preset-env"],
+            plugins: [
+                ["@babel/transform-runtime"]
             ]
-        }
-        `);
+        };
+        const babel_ = await this.x_theme.BabelRC(default_babel);
+        this.writeFile(g('@app/.babelrc'),JSON.stringify(babel_));
         // create webpack.config.js
         let webpack = {};
         webpack.template = `

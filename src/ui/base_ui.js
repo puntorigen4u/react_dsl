@@ -104,6 +104,7 @@ export class base_ui {
             'textTag': 'div',
             'iconNPM': '',
             'viewNPM': '',
+            textSimpleIfParentView: [],
             bold: { //gets merged on textTags
                 class: 'font-weight-bold'
             },
@@ -130,6 +131,11 @@ export class base_ui {
             open:``,
             close:``
         }
+    }
+
+    async BabelRC(data) {
+        //transforms the given babelrc.json data, before writing it
+        return data
     }
 
     async globalCSS() {

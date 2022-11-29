@@ -43,6 +43,7 @@ export class mui extends base_ui {
             'textTag': 'Typography',
             'viewNPM': '@mui/material',
             'iconNPM': '@mui/icons-material',
+            textSimpleIfParentView:['Button'],
             bold: {
                 sx: {
                     fontWeight:'bold'
@@ -90,6 +91,18 @@ export class mui extends base_ui {
             `</ThemeProvider>
             </CacheProvider>`
         }
+    }
+
+    async BabelRC(data) {
+        //transforms the given babelrc.json data, before writing it
+        let new_ = data;
+        new_.plugins.push([
+            'babel-plugin-direct-import',
+            {
+                modules: ["@mui/material", "@mui/icons-material"]
+            }
+        ]);
+        return new_
     }
 
     async globalCSS() {
