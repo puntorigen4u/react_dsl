@@ -122,9 +122,8 @@ export const autocomplete = async(parent) =>{
     const components = {};
     // ****************************
     // LAYOUT:
-    components.Box = {
-        ...types.base,
-        ...{
+    components.Box = parent.extend(types.base,
+        {
             hint: `The Box component serves as a wrapper component for most of the CSS utility needs.`,
             attributes: {...systemProp,...{
                 '{icon:list}sx': {
@@ -142,7 +141,7 @@ export const autocomplete = async(parent) =>{
                 }
             }}
         }
-    };
+    );
 
     // ****************************
     // ICON: dynamic import from @mui/icons-material
@@ -162,9 +161,8 @@ export const autocomplete = async(parent) =>{
     });
     //console.log('icons_grouped_by_style',icons_grouped_by_style);
     for (let style in icons_grouped_by_style){
-        components['icon:'+style+':'] = {
-            ...types.base,
-            ...{
+        components['icon:'+style+':'] = parent.extend(types.base,
+            {
                 hint: `<b>Material UI Icon</b> - style <b>${style}</b>\n
                        \n<u>Use any of these icons:</u>\n\n 
                        ${icons_grouped_by_style[style].join(', ')}\n\n`,
@@ -183,10 +181,10 @@ export const autocomplete = async(parent) =>{
                     }
                 }
             }
-        };
+        );
         //add the dynamic x_command support
         await parent.addCommand({
-            [`def_icon_${style.toLowerCase()}`]: {
+            [`mui_icon_${style.toLowerCase()}`]: {
                 x_level: '>3',
                 x_icons: 'idea',
                 x_text_contains: `icon:${style}:`,
@@ -216,10 +214,92 @@ export const autocomplete = async(parent) =>{
     }
 
     // ****************************
-    // FORMS:
-    components.Button = {
-        ...components.Box,
-        ...{
+    // INPUTS:
+    components.ButtonBase = parent.extend(types.base,
+        {
+            hint: `The ButtonBase component is used to create a button based component.`,
+            attributes: {
+                action: {
+                    type: 'ref',
+                    hint: `A ref for imperative actions. It currently only supports focusVisible() action`
+                },
+                centerRipple: {
+                    type: 'boolean',
+                    default: 'false',
+                    hint: `If true, the ripples will be centered. They won't start at the cursor interaction position.`
+                },
+                '{icon:list}classes': {
+                    type: 'object',
+                    hint: `Override or extend the styles applied to the component. See CSS API below for more details.`   
+                },
+                component: {
+                    type: 'string',
+                    default: 'Button',
+                    hint: `The component used for the root node. Either a string to use a HTML element or a component.`
+                },
+                disabled: {
+                    type: 'boolean',
+                    default: 'false',
+                    hint: `If true, the base button will be disabled.`
+                },
+                disableRipple: {
+                    type: 'boolean',
+                    default: 'false',
+                    hint: `If true, the ripple effect is disabled. Without a ripple there is no styling for :focus-visible by default. `
+                },
+                disableTouchRipple: {
+                    type: 'boolean',
+                    default: 'false',
+                    hint: `If true, the touch ripple effect is disabled.`
+                },
+                focusRipple: {
+                    type: 'boolean',
+                    default: 'false',
+                    hint: `If true, the base button will have a keyboard focus ripple.`
+                },
+                focusVisibleClassName: {
+                    type: 'string',
+                    hint: `This prop can help identify which element has keyboard focus. The class name will be applied when the element gains the focus through keyboard interaction. It's a polyfill for the CSS :focus-visible selector.`,
+                },
+                '{icon:idea}LinkComponent': {
+                    type: '{icon:idea}Element',
+                    default: 'a',
+                    hint: `The component used to render a link when the href prop is provided.`
+                },
+                '{icon:list}{icon:help}onFocusVisible': {
+                    type: 'function',
+                    hint: `Callback fired when the component is focused with a keyboard. We trigger a onFocus callback too.`,
+                },
+                '{icon:list}sx': {
+                    type: 'object',
+                    hint: `The sx prop is a shortcut for defining custom styles that has access to the theme.`
+                },
+                '{icon:list}TouchRippleProps': {
+                    type: 'object',
+                    hint: `Props applied to the TouchRipple element.`
+                },
+                '{icon:list}{icon:help}touchRippleRef': {
+                    type: 'function',
+                    hint: `A ref that points to the TouchRipple element.`
+                },
+            },
+            events: {
+                focusVisible: {
+                    hint: `Callback fired when the component is focused with a keyboard. Also triggers a 'focus' event.`
+                },
+                focus: {
+                    hint: `Callback fired when the component is focused.`
+                },
+                click: {
+                    params: 'event',
+                    hint: `Callback fired when the button is clicked.`
+                }
+            }
+        }
+    );
+    components.Button = parent.extend(components.ButtonBase,
+        {
+            extends_: 'ButtonBase',
             hint:'Buttons allow users to take actions, and make choices, with a single tap.', 
             attributes:{
                 'color': { 
@@ -291,10 +371,10 @@ export const autocomplete = async(parent) =>{
                 }
             }
         }
-    };
-    components.LoadingButton = {
-        ...components.Button,
-        ...{
+    );
+    components.LoadingButton = parent.extend(components.Button,
+        {
+            extends_: 'Button',
             hint:'The loading buttons can show loading state and disable interactions.',
             attributes:{
                 'loading': {
@@ -306,107 +386,144 @@ export const autocomplete = async(parent) =>{
                     type: '{icon:idea}Element',
                     default: '{icon:idea}CircularProgress[color="inherit" size={16}]',
                     hint: `Element placed before the children if the button is in loading state.`
-                }
+                },
+                'loadingPosition': {
+                    type: 'start, end, center',
+                    default: 'center',
+                    hint: `The loading indicator can be positioned on the start, end, or the center of the button.`
+                },
             }
         }
-    };
-    components.ButtonGroup = {
-        ...components.Box,
-        ...{
+    );
+    components.ButtonGroup = parent.extend(types.base,
+        {
             hint:`Component that groups buttons together`,
             attributes: {
+                '{icon:list}classes': {
+                    //type: systemProp["marginRight"].type,
+                    type: 'object',
+                    hint: `Override or extend the styles applied to the component.`
+                },
+                'color': { 
+                    //all keys are optional - empty by default
+                    type: types.colors.join(', '), 
+                    default: 'primary', 
+                    hint: 'The color of the component. It supports both default and custom theme colors.' 
+                },
+                'component': {
+                    type: 'string',
+                    hint: `The component used for the root node; a string with the HTML element.`,
+                    default: 'Button'
+                },
+                '{icon:list}{icon:idea}component': {
+                    type: '{icon:idea}Element',
+                    hint: `The component used for the root node; a component with the Element.`,
+                    default: '{icon:idea}Button'
+                },
+                'disabled': {
+                    type: 'boolean',
+                    default: false,
+                    hint: `If true, the component is disabled.`
+                },
+                'disableElevation': {
+                    type: 'boolean',
+                    default: false,
+                    hint: `If true, no elevation is used.`
+                },
+                'disableFocusRipple': {
+                    type: 'boolean',
+                    default: false,
+                    hint: `If true, the button keyboard focus ripple is disabled.`
+                },
+                'disableRipple': {
+                    type: 'boolean',
+                    default: false,
+                    hint: `If true, the button ripple effect is disabled.`
+                },
+                fullWidth: {
+                    type: 'boolean',
+                    default: false,
+                    hint: `If true, the buttons will take up the full width of its container.`
+                },
+                orientation: {
+                    type: 'horizontal, vertical',
+                    default: 'horizontal',
+                    hint: `The component orientation (layout flow direction).`
+                },
+                'size': {
+                    type: types.sizes.join(', '),
+                    default: 'medium',
+                    hint: `The size of the component. small is equivalent to the dense button styling.`
+                },
+                '{icon:list}sx': {
+                    type: 'object',
+                    hint: `The sx prop is a shortcut for defining custom styles that has access to the theme.`
+                },
                 variant: {
                     type: types.variant.join(', '),
                     default: 'solid',
-                },
-                spacing: {
-                    type: 'integer',
-                    default: 0,
-                    hint: `Adds spacing between the buttons`
-                }   
-            }
-        }
-    };
-    components.Checkbox = {
-        ...components.Box,
-        ...{
-            hint:'The Checkbox component is used in forms when a user needs to select multiple values from several options.',
-            attributes:{
-                'colorScheme': { 
-                    //all keys are optional - empty by default
-                    type: types.colors.join(', '), 
-                    default: 'grey', 
-                    hint: '' 
-                },
-                defaultIsChecked: {
-                    type: 'boolean',
-                    default: '',
-                    hint: 'If `true`, the checkbox will be initially checked.',
-                },
-                '{icon:list}{icon:idea}icon': {                        
-                    type: `{icon:idea}icon:x`,
-                    default: 'CheckboxIcon',
-                    hint: `The checked icon to use.`
-                },
-                iconColor: {
-                    type: types.colors.join(', ')
-                },
-                iconSize: {
-                    type: types.sizes.join(', '),
-                },
-                isChecked: {
-                    type: 'boolean',
-                    hint: 'If `true`, the checkbox will be checked.',
-                },
-                isDisabled: {
-                    type: 'boolean',
-                    hint: 'If `true`, the checkbox will be disabled.',
-                },
-                isFocusable: {
-                    type: 'boolean',
-                    hint: 'If `true` and `isDisabled` is passed, the checkbox will remain tabbable but not interactive',
-                },
-                isIndeterminate: {
-                    type: 'boolean',
-                    hint: 'If `true`, the checkbox will be indeterminate.',
-                },
-                isInvalid: {
-                    type: 'boolean',
-                    hint: 'If `true`, the checkbox will be marked as invalid.',
-                },
-                isReadOnly: {
-                    type: 'boolean',
-                    hint: 'If `true`, the checkbox will be readonly.',
-                },
-                isRequired: {
-                    type: 'boolean',
-                    hint: 'If `true`, the checkbox will be required.',
-                },
-                name: {
-                    type: 'string',
-                    hint: 'The name of the input field in a checkbox (useful for form submission).',
-                },
-                onChange: {
-                    type: '{icon:help}event',
-                    hint: 'The callback fired when the state is changed.',
-                },
-                size: {
-                    type: types.sizes.join(', '),
-                },
-                spacing: {
-                    type: 'SystemProps["marginLeft"]',
-                    hint: 'The spacing between the checkbox and its label.',
-                },
-                value: {
-                    type: 'string, number',
-                    hint: 'The value to be used in the checkbox input. This is the value that will be returned on form submission.'
-                },
-                variant: {
-                    type: types.variant.join(', '),
                 }
             }
         }
-    };
+    );
+    components.Checkbox = parent.extend(components.ButtonBase,
+        {
+            extends_: 'ButtonBase', //@todo to be used to extend ourselfs without using the 'extend' method, and identify which attribs are inherited (to colour them differently on the tables)
+            hint:'Checkboxes allow the user to select one or more items from a set.',
+            attributes:{
+                'checked': {
+                    type: 'boolean',
+                    default: false,
+                    hint: `If true, the component is checked.`
+                },
+                '{icon:list}{icon:idea}icon': {
+                    type: '{icon:idea}Element,{icon:idea}icon:',
+                    default: '{icon:idea}CheckBoxOutlineBlankIcon',
+                    hint: `The icon to display when the component is checked.`,
+                },
+                '{icon:list}{icon:idea}checkedIcon': {
+                    type: '{icon:idea}Element,{icon:idea}icon:',
+                    default: '{icon:idea}CheckBoxIcon',
+                    hint: `The icon to display when the component is checked.`,
+                },
+                '{icon:list}classes': {
+                    //type: systemProp["marginRight"].type,
+                    type: 'object',
+                    hint: `Override or extend the styles applied to the component.`
+                },
+                'color': { 
+                    //all keys are optional - empty by default
+                    type: types.colors.join(', '), 
+                    default: 'primary', 
+                    hint: 'The color of the component. It supports both default and custom theme colors.' 
+                },
+                defaultChecked: {
+                    type: 'boolean',
+                    default: false,
+                    hint: `The default checked state. Use when the component is not controlled.`,
+                },
+                id: {
+                    type: 'string',
+                    hint: `The id of the input element.`,
+                },
+                indeterminate: {
+                    type: 'boolean',
+                    default: false,
+                    hint: `If true, the component appears indeterminate. This does not set the native input element to indeterminate due to inconsistent behavior across browsers. However, we set a data-indeterminate attribute on the input.`,
+                },
+                '{icon:list}{icon:idea}indeterminateIcon': {
+                    type: '{icon:idea}Element',
+                    default: '{icon:idea}IndeterminateCheckBoxIcon',
+                    hint: `The indeterminate icon to display when the component is indeterminate.`,
+                },
+                '{icon:list}inputProps': {
+                    type: 'object',
+                    hint: `Attributes applied to the input element.`,
+                },
+
+            }
+        }
+    );
     //****************************
     return components;
 }

@@ -359,6 +359,107 @@ export default class react_dsl extends concepto {
         //this.debug('x_state says',this.x_state);
     }
 
+    renderTable(title, table, render) {
+		//obtain our theme data
+        const meta = this.x_commands.meta;
+		let theme = {
+			table_bgcolor: "#AAD3F3",
+			tr0_bgcolor: "#AAD3F3",
+			tr_bgcolor: "#AAD3F3",
+            tr_inherited_bgcolor: "#C3C3C3",
+			cellpadding: 2,
+			cellspacing: 0,
+		};
+		// overwrite with given theme if defined
+		let custom_theme = (meta.autocomplete && meta.autocomplete.theme)?meta.autocomplete.theme:{};
+		theme = { ...theme, ...custom_theme };
+        //********************/
+        //RENDER HTML TABLE
+        //********************/
+        let html = `<table width='100%' border=1 cellspacing=${theme.cellspacing} cellpadding=${theme.cellpadding} bordercolor='${theme.table_bgcolor}'>`;
+        let header = Object.keys(table[0]);
+        let numHeaders = header.length;
+        if (header.includes('inherited_')) {
+            numHeaders = numHeaders-1;
+        }
+        //table title
+        html += `<tr bgcolor='${theme.tr0_bgcolor}'>`;
+        html += `<td colspan='${numHeaders}' valign='top' align='left'>${title}:</td>`;
+        html += `</tr>`;
+        //table header
+        html += `<tr bgcolor='${theme.tr0_bgcolor}'>`;
+        for (let h of header) {
+            if (h.indexOf('_')==-1) {
+                html += `<td valign='top'><b>${h}</b></td>`;
+            }
+        }
+        html += `</tr>`;
+        //table rows
+        for (let row in table) {
+            if (table[row].inherited_ && table[row].inherited_==true) {
+                html += `<tr bgcolor='${theme.tr_inherited_bgcolor}'>`;
+            } else {
+                html += `<tr bgcolor='${theme.tr_bgcolor}'>`;
+            }
+            for (let col in table[row]) {
+                if (col.indexOf('_')==-1) {
+                    html += `<td>${render.placeholders(table[row][col])}</td>`;
+                }
+            }
+            html += `</tr>`;
+        }
+        //close table
+        html += `</table>`;
+        return html;
+    }
+
+    //overwrite autocomplete HTML generator template
+    async autocompleteContentTemplate(record, render) {
+		// param record is an autocomplete object for a given item
+		// returns the template to show in an autocomplete view
+		const keyword = render.placeholders(record.text);
+		const hint = render.placeholders(record.hint.replace('\n','<br/>'));
+		const attributes = record.attributes;
+		const events = (record.events && Object.keys(record.events).length>0)?record.events:{};
+		const icons = (record.icons)?record.icons:[];
+		const type = (record.type)?record.type:'internal';
+		let html = '';
+        const renderIcon = (icon) => {
+            return `<img src="${icon}.png" align="left" hspace="0" vspace="1" valign="bottom" />&nbsp;`
+        };
+		for (let icon of icons) {
+            html += renderIcon(icon);
+		}
+		html += `<b>${keyword}</b><br /><br />`;
+        if (record.extends_ && record.extends_!='') {
+			html += render.placeholders(`Extends {icon:idea}<b>${record.extends_}</b><br/>`);
+		}
+		html += `${hint}<br /><br />`;
+		html += render.attrs(attributes,renderIcon);
+		html += `<br />`;
+        const customRender = {
+            ...render,
+            ...{
+                placeholders: (str) => {
+                    return render.placeholders(str,renderIcon);
+                }
+            }
+        };
+        // add events
+        if (Object.keys(events).length>0) {
+            let eventsArr = [];
+            for (let event in events) {
+                // push event object
+                eventsArr.push({ 'Name':'{icon:help}'+event, 'Params':(events[event].params)?events[event].params:'', 'Hint':events[event].hint, 'inherited_':events[event].inherited_ });
+            }
+            const x = this.renderTable(customRender.placeholders('<b>Events</b>'),eventsArr,customRender);
+            html += x;
+        }
+        html += `<br />`;
+		//;
+		return html;
+	}
+
     //Called after parsing nodes
     async onAfterProcess(processedNode) {
         return processedNode;
@@ -1072,9 +1173,9 @@ ${this.x_state.dirs.compile_folder}/`;
                     //before processing, check if within us we need to call ourselfs 
                     //to process other internal tags
                     if (inner.indexOf('def_param')!=-1) {
-                        console.log('calling self.processInternalTags()');
+                        //console.log('calling self.processInternalTags()');
                         inner = (await self.processInternalTags({template:inner},page)).template;
-                        console.log('after self.processInternalTags()',inner);
+                        //console.log('after self.processInternalTags()',inner);
                     }
                     inner = removeSpecialRefx(inner);
                     val = self.serializeComplexAttr(inner);

@@ -136,7 +136,7 @@ export class chakra extends base_ui {
               }
             },
         };
-        default_theme = this.deepMerge(default_theme,this.context.x_state.theme);
+        default_theme = this.extend(default_theme,this.context.x_state.theme);
         material_theme = material_theme.replaceAll('{concepto:theme}',this.context.jsDump(default_theme));
         await this.context.writeFile(g('@theme/theme.js'),material_theme);
 

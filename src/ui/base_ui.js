@@ -9,7 +9,7 @@ export class base_ui {
         this.context = context;
         this.name = name;
         this.i_commands = {};
-        this.deepMerge = require('deepmerge');
+        this.extend = require('deepmerge');
     }
 
     //****************************
@@ -51,7 +51,9 @@ export class base_ui {
                 icons: auto[tag].icons,
                 level: auto[tag].level,
                 hint: auto[tag].hint,
-                attributes: auto[tag].attributes
+                attributes: auto[tag].attributes,
+                events: (auto[tag].events)?auto[tag].events:{},
+                extends_: (auto[tag].extends_)?auto[tag].extends_:'',
             }
         });
         for (let key in tags) {
