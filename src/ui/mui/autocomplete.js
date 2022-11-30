@@ -300,6 +300,7 @@ export const autocomplete = async(parent) =>{
     components.Button = parent.extend(components.ButtonBase,
         {
             extends_: 'ButtonBase',
+            //parents: ["ButtonGroup","*"],
             hint:'Buttons allow users to take actions, and make choices, with a single tap.', 
             attributes:{
                 'color': { 
@@ -485,6 +486,7 @@ export const autocomplete = async(parent) =>{
                     type: '{icon:idea}Element,{icon:idea}icon:',
                     default: '{icon:idea}CheckBoxIcon',
                     hint: `The icon to display when the component is checked.`,
+                    posibleChildren: ['icon:','CheckBoxIcon'], //add this node texts to the parents array for the 'icon:' nodes
                 },
                 '{icon:list}classes': {
                     //type: systemProp["marginRight"].type,
