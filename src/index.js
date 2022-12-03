@@ -1920,7 +1920,7 @@ ${cur.attr('name')}: {
         }
     }
 
-    async createSystemFiles() {
+    async createSystemFiles(processedNodes) {
         const path = require('path');
         const g = this.g;
         await this.x_theme.generateFiles();
@@ -2023,8 +2023,8 @@ ${cur.attr('name')}: {
         import ReactDOM from "react-dom";
         {appJSX.imports}
 
-        // @todo add a key for each main page
-        import { Home } from "./pages";
+        // import each main page
+        {appJSX.import_pages}
 
         import "./styles/globals.css";
 
@@ -2039,6 +2039,21 @@ ${cur.attr('name')}: {
         };
         ReactDOM.render(<App />, document.getElementById("app"));
         `;
+        // get pages {appJSX.import_pages} 
+        // iterate this.x_state.pages, and grab file names from processedNodes 
+        let import_pages = '';
+        for (let thefile_num in processedNodes)  {
+            let thefile = processedNodes[thefile_num];
+            let page = this.x_state.pages[thefile.title];
+            if (page) {
+                const name = thefile.file.split('.')[0];
+                if (page.type=='page') {
+                    import_pages += `import { ${name} } from "./pages";\n`;
+                }
+            }
+        }
+        appJSX = appJSX.replace('{appJSX.import_pages}', import_pages);
+        //
         const JSX_imports = await this.x_theme.AppImports();
         appJSX = appJSX.replace('{appJSX.imports}', JSX_imports);
         const JSX_wrap = await this.x_theme.AppWrap();
@@ -3274,7 +3289,7 @@ export const decorators = [
         //-await this.createMiddlewares();
         //create server files (nuxt express, mimetypes)
         //-await this.prepareServerFiles();
-        await this.createSystemFiles();
+        await this.createSystemFiles(processedNodes);
         //@todo 23nov22 create method for declaring default mf files structure
         //declare required plugins
         //-await this.installRequiredPlugins();
