@@ -3,7 +3,7 @@ const concepto = require('@concepto/interface');
 //import { isContext, runInThisContext } from 'vm';
 //import concepto from '../../concepto/src/index'
 /**
- * Concepto REACT DSL Class: A class for compiling react.dsl Concepto diagrams into NextJS WebApps.
+ * Concepto REACT DSL Class: A class for compiling react.dsl Concepto diagrams into MF+ReactJS WebApps.
  * @name 	react_dsl
  * @module 	react_dsl
  **/

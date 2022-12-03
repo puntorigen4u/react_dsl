@@ -1,6 +1,6 @@
 {
   "name": "@concepto/react",
-  "version": "0.0.28",
+  "version": "0.0.29",
   "description": "Concepto DSL - Visually create and maintain modern Node.js based web apps (@react)",
   "keywords": [
     "creador",
@@ -38,6 +38,7 @@
     "@concepto/console": "*",
     "@concepto/dsl_parser": "*",
     "@concepto/interface": "*",
+    "@emotion/styled": "^11.10.5",
     "@mui/icons-material": "^5.10.16",
     "asciify-image": "^0.1.6",
     "await-spawn": "^4.0.2",
