@@ -71,6 +71,16 @@ export class base_ui {
         };
         /* add support for remapping attributes.'posibleChildren' key existance */
         Object.keys(auto).forEach((tag) => {
+            // add 'type' to auto[tag] if 'icons' contain 'idea'=view, 'help'=event, 'penguin'=script, 'desktop_new'=command
+            if (auto[tag].icons && auto[tag].icons.includes('idea')) {
+                auto[tag].type = 'view';
+            } else if (auto[tag].icons && auto[tag].icons.includes('help')) {
+                auto[tag].type = 'event';
+            } else if (auto[tag].icons && auto[tag].icons.includes('penguin')) {
+                auto[tag].type = 'script';
+            } else if (auto[tag].icons && auto[tag].icons.includes('desktop_new')) {
+                auto[tag].type = 'command';
+            }
             // for each attribute
             Object.keys(auto[tag].attributes).forEach((attr_) => {
                 // remove all {icon:x} strings from attr_
@@ -86,9 +96,12 @@ export class base_ui {
                                 // only add it to parents that already contain something, to make it specific
                                 if (auto[tag_].parents && auto[tag_].parents.length>0) auto[tag_].parents.push(attr__);
                                 // also create an autocomplete item for the attribute if it doesn't exist
+                                let type__ = (attr_.indexOf('{icon:help}')!=-1)?'event-attribute':'attribute';
+                                type__ = (attr_.indexOf('{icon:idea}')!=-1)?'view-attribute':type__;
                                 if (!auto[attr__]) {
                                     auto[attr__] = {
                                         text: attr__,
+                                        type: type__,
                                         parents: [tag],
                                         icons: extractIcons(attr_).icons,
                                         level: [],
@@ -104,13 +117,71 @@ export class base_ui {
                     });
                     delete auto[tag].attributes[attr_]['posibleChildren'];
                 }
+                // also add the attribute to the auto object if it contains {icon:list} within its keyname
+                if (attr_.indexOf('{icon:list}')!=-1) {
+                    let type__ = (attr_.indexOf('{icon:help}')!=-1)?'event-attribute':'attribute';
+                    type__ = (attr_.indexOf('{icon:idea}')!=-1)?'view-attribute':type__;
+                    if (!auto[attr__]) {
+                        auto[attr__] = {
+                            text: attr__,
+                            type: type__,
+                            parents: [tag],
+                            icons: extractIcons(attr_).icons,
+                            level: [],
+                            hint: attr.hint,
+                            attributes: {}
+                        };
+                    } else {
+                        // if it already existed, add to parents array if it was not there already
+                        if (!auto[attr__].parents.includes(tag)) auto[attr__].parents.push(tag);
+                    }
+                    //
+                }
             });
+            // for each event, create an auto[tag] item if it doesn't exist, and add 'tag' as a parents item (if it wasn't there already)
+            if (auto[tag].events) {
+                const params2attr = (params) => {
+                    //returns a object with the params as keys, and empty attr object as values
+                    let resp = {};
+                    if (typeof params=='string') {                    
+                        //params is a list string of params, like 'a,b,c'
+                        params.split(',').forEach((param) => {
+                            resp[param] = {
+                                type: 'string',
+                                default: '',
+                                hint: ''
+                            };
+                        });
+                    } else if (typeof params=='object') {
+                        //return params as is, or re-map its keys to match an attr object
+                        resp = params;
+                    }
+                    return resp;
+                };
+                Object.keys(auto[tag].events).forEach((event) => {
+                    if (!auto[event]) {
+                        auto[event] = {
+                            text: event,
+                            type: 'event',
+                            parents: [tag],
+                            icons: ['help'],
+                            level: [],
+                            hint: auto[tag].events[event].hint,
+                            attributes: (auto[tag].events[event].params)?params2attr(auto[tag].events[event].params):{}
+                        };
+                    } else {
+                        // if it already existed, add to parents array if it was not there already
+                        if (!auto[event].parents.includes(tag)) auto[event].parents.push(tag);
+                    }
+                });
+            }
         });
         //console.log('auto POST',auto);
         //
         let tags = Object.keys(auto).map((tag) => {
             return {
                 text: tag,
+                type: (auto[tag].type)?auto[tag].type:'',
                 icons: auto[tag].icons,
                 level: auto[tag].level,
                 hint: auto[tag].hint,
