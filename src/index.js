@@ -1166,14 +1166,16 @@ ${this.x_state.dirs.compile_folder}/`;
                 let target_ = $(target_node[0]);
                 let val = '';
                 let inner = cur.html();
-                if (cur.attr('is_function')) {
+                if (cur.attr('is_function') && cur.attr('is_function')=="true") {
                     //wrap contents in a function within the value of the parent attribute
                     val = self.serializeComplexAttr(`()=>{ ${cur.html()} }`);
-                } else if (cur.attr('is_view')) {
+                } else if (cur.attr('is_view') && cur.attr('is_view')=="true") {
                     //before processing, check if within us we need to call ourselfs 
+                    //this.debug('def_param inner',inner);
                     //to process other internal tags
                     if (inner.indexOf('def_param')!=-1) {
                         //console.log('calling self.processInternalTags()');
+                        //inner = this.decryptSpecialProps(inner);
                         inner = (await self.processInternalTags({template:inner},page)).template;
                         //console.log('after self.processInternalTags()',inner);
                     }

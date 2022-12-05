@@ -43,11 +43,11 @@ export class base_ui {
         */
     }
 
-    async basicAutocomplete() {
+    async sharedAutocomplete() {
         // returns basic autocompletion calls
         // main commands for now; pages, components, models, config node
-        let basic = {};
-        basic['_centralnode_'] = {
+        let shared = {};
+        shared['_centralnode_'] = {
             text: 'appName',
             type: 'config',
             hint: 'Defines the name of the project and its main configuration',
@@ -62,7 +62,7 @@ export class base_ui {
                 }
             }
         };
-        basic['_theme_'] = {
+        shared['_theme_'] = {
             text: 'theme',
             type: 'config',
             hint: 'Defines the global theme configuration options',
@@ -78,7 +78,7 @@ export class base_ui {
             }
         };
         for (let i of ['primary','secondary','error','warning','info','success']) {
-            basic[`_themecolor_${i}`] = {
+            shared[`_themecolor_${i}`] = {
                 text: i,
                 type: 'theme_color',
                 hint: `Defines the ${i} color of the theme. Use the background color of the node to define the color.`,
@@ -88,7 +88,7 @@ export class base_ui {
                 attributes: {}
             };
         }
-        basic['_themefile_'] = {
+        shared['_themefile_'] = {
             text: 'theme',
             type: 'config',
             hint: 'Defines the theme configuration for the current file',
@@ -103,7 +103,7 @@ export class base_ui {
                 }
             }
         };
-        basic['_index_'] = {
+        shared['_index_'] = {
             text: 'index',
             type: 'file',
             hint: 'Defines the first page to be loaded',
@@ -114,11 +114,11 @@ export class base_ui {
                 'params': {
                     type: 'string',
                     default: '',
-                    hint: 'List of parameters that the page can receive'
+                    hint: 'Comma delimited list of parameters that the page can receive. You can use their value anywhere within the page, using $params.name.'
                 }
             }
         };
-        basic['group:*'] = {
+        shared['group:*'] = {
             type: 'virtual',
             hint: 'Dummy node to group files visually. Does not generate any code. Use it to organize your files.',
             level: [2],
@@ -126,7 +126,7 @@ export class base_ui {
             childrenTypes: ['file'],
             attributes: {}
         };
-        basic['page'] = {
+        shared['page'] = {
             text: 'filename',
             type: 'file',
             hint: 'Represents a file to be created',
@@ -142,11 +142,11 @@ export class base_ui {
                 'params': {
                     type: 'string',
                     default: '',
-                    hint: 'List of parameters that the page can receive'
+                    hint: 'Comma delimited list of parameters that the page can receive. You can use their value anywhere within the page, using $params.name.'
                 }
             }
         };
-        basic['component:*'] = {
+        shared['component:*'] = {
             type: 'file',
             hint: 'Represents component file to be created',
             level: [2,3],
@@ -156,15 +156,15 @@ export class base_ui {
                 'params': {
                     type: 'string',
                     default: '',
-                    hint: 'List of parameters that the component can receive'
+                    hint: 'Comma delimited list of parameters that the component can receive. You can use their value anywhere within the component, using $params.name.'
                 }
             }
         };
-        return basic;
+        return shared;
     }
 
     async generateAutoComplete() {
-        const main = await this.basicAutocomplete();
+        const main = await this.sharedAutocomplete();
         const custom = await this.autocomplete();
         let auto = this.extend(main, custom);
         //console.log('auto pre',auto);
