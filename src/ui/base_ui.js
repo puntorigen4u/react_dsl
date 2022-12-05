@@ -43,8 +43,130 @@ export class base_ui {
         */
     }
 
+    async basicAutocomplete() {
+        // returns basic autocompletion calls
+        // main commands for now; pages, components, models, config node
+        let basic = {};
+        basic['_centralnode_'] = {
+            text: 'appName',
+            type: 'config',
+            hint: 'Defines the name of the project and its main configuration',
+            level: [1],
+            icons: [],
+            //childrenTypes: ['file','virtual','config','model'],
+            attributes: {
+                'ui': {
+                    type: 'mui,joy,chakra',
+                    default: 'mui',
+                    hint: 'Name of UI library to use.'
+                }
+            }
+        };
+        basic['_theme_'] = {
+            text: 'theme',
+            type: 'config',
+            hint: 'Defines the global theme configuration options',
+            level: [2],
+            icons: ['desktop_new'],
+            childrenTypes: ['theme_color'],
+            attributes: {
+                'mode': {
+                    type: 'light,dark',
+                    default: 'light',
+                    hint: 'Mode of theme to apply.'
+                }
+            }
+        };
+        for (let i of ['primary','secondary','error','warning','info','success']) {
+            basic[`_themecolor_${i}`] = {
+                text: i,
+                type: 'theme_color',
+                hint: `Defines the ${i} color of the theme. Use the background color of the node to define the color.`,
+                level: [3],
+                icons: [],
+                childrenTypes: ['none'],
+                attributes: {}
+            };
+        }
+        basic['_themefile_'] = {
+            text: 'theme',
+            type: 'config',
+            hint: 'Defines the theme configuration for the current file',
+            level: [3],
+            icons: ['desktop_new'],
+            childrenTypes: ['theme_color'],
+            attributes: {
+                'mode': {
+                    type: 'light,dark',
+                    default: 'light',
+                    hint: 'Mode of theme to apply.'
+                }
+            }
+        };
+        basic['_index_'] = {
+            text: 'index',
+            type: 'file',
+            hint: 'Defines the first page to be loaded',
+            level: [2],
+            icons: ['gohome'],
+            childrenTypes: [],
+            attributes: {
+                'params': {
+                    type: 'string',
+                    default: '',
+                    hint: 'List of parameters that the page can receive'
+                }
+            }
+        };
+        basic['group:*'] = {
+            type: 'virtual',
+            hint: 'Dummy node to group files visually. Does not generate any code. Use it to organize your files.',
+            level: [2],
+            icons: ['list'],
+            childrenTypes: ['file'],
+            attributes: {}
+        };
+        basic['page'] = {
+            text: 'filename',
+            type: 'file',
+            hint: 'Represents a file to be created',
+            level: [2,3],
+            icons: [],
+            childrenTypes: [],
+            attributes: {
+                'path': {
+                    type: 'string',
+                    default: '/',
+                    hint: 'Defines the path that respond to this page'
+                },
+                'params': {
+                    type: 'string',
+                    default: '',
+                    hint: 'List of parameters that the page can receive'
+                }
+            }
+        };
+        basic['component:*'] = {
+            type: 'file',
+            hint: 'Represents component file to be created',
+            level: [2,3],
+            icons: [],
+            childrenTypes: ['view*','attribute*','config'],
+            attributes: {
+                'params': {
+                    type: 'string',
+                    default: '',
+                    hint: 'List of parameters that the component can receive'
+                }
+            }
+        };
+        return basic;
+    }
+
     async generateAutoComplete() {
-        const auto = await this.autocomplete();
+        const main = await this.basicAutocomplete();
+        const custom = await this.autocomplete();
+        let auto = this.extend(main, custom);
         //console.log('auto pre',auto);
         const extractIcons = (content,icons) => {
             //extracts the icons from the content ({icon:x}{icon:y}z , returns { content:'z', icons:[x,y] })
@@ -72,20 +194,23 @@ export class base_ui {
         /* add support for remapping attributes.'posibleChildren' key existance */
         Object.keys(auto).forEach((tag) => {
             // add 'type' to auto[tag] if 'icons' contain 'idea'=view, 'help'=event, 'penguin'=script, 'desktop_new'=command
-            if (auto[tag].icons && auto[tag].icons.includes('idea')) {
-                auto[tag].type = 'view';
-            } else if (auto[tag].icons && auto[tag].icons.includes('help')) {
-                auto[tag].type = 'event';
-            } else if (auto[tag].icons && auto[tag].icons.includes('penguin')) {
-                auto[tag].type = 'script';
-            } else if (auto[tag].icons && auto[tag].icons.includes('desktop_new')) {
-                auto[tag].type = 'command';
+            if (auto[tag].type.trim()=='') {
+                if (auto[tag].icons && auto[tag].icons.includes('idea')) {
+                    auto[tag].type = 'view';
+                } else if (auto[tag].icons && auto[tag].icons.includes('help')) {
+                    auto[tag].type = 'event';
+                } else if (auto[tag].icons && auto[tag].icons.includes('penguin')) {
+                    auto[tag].type = 'script';
+                } else if (auto[tag].icons && auto[tag].icons.includes('desktop_new')) {
+                    auto[tag].type = 'command';
+                }
             }
             // for each attribute
             Object.keys(auto[tag].attributes).forEach((attr_) => {
                 // remove all {icon:x} strings from attr_
                 let attr__ = attr_.replace(/{icon:[^}]*}/g,'');
                 let attr = auto[tag].attributes[attr_];
+                /*
                 if (attr && attr['posibleChildren']) {
                     // for each posibleChildren item
                     attr['posibleChildren'].forEach((child) => {
@@ -93,6 +218,7 @@ export class base_ui {
                         Object.keys(auto).forEach((tag_) => {
                             if (tag_.indexOf(child)!=-1) { 
                                 // push child into matching auto[tag_] parents array
+                                this.context.debug('('+tag+')adding '+child+' to '+tag_+' parents');
                                 // only add it to parents that already contain something, to make it specific
                                 if (auto[tag_].parents && auto[tag_].parents.length>0) auto[tag_].parents.push(attr__);
                                 // also create an autocomplete item for the attribute if it doesn't exist
@@ -116,7 +242,7 @@ export class base_ui {
                         });
                     });
                     delete auto[tag].attributes[attr_]['posibleChildren'];
-                }
+                }*/
                 // also add the attribute to the auto object if it contains {icon:list} within its keyname
                 if (attr_.indexOf('{icon:list}')!=-1) {
                     let type__ = (attr_.indexOf('{icon:help}')!=-1)?'event-attribute':'attribute';
@@ -129,6 +255,7 @@ export class base_ui {
                             icons: extractIcons(attr_).icons,
                             level: [],
                             hint: attr.hint,
+                            childrenTypes: (attr.childrenTypes)?attr.childrenTypes:[],
                             attributes: {}
                         };
                     } else {
@@ -166,6 +293,7 @@ export class base_ui {
                             parents: [tag],
                             icons: ['help'],
                             level: [],
+                            childrenTypes: (auto[tag].events[event].childrenTypes)?auto[tag].events[event].childrenTypes:[],
                             hint: auto[tag].events[event].hint,
                             attributes: (auto[tag].events[event].params)?params2attr(auto[tag].events[event].params):{}
                         };
@@ -180,7 +308,9 @@ export class base_ui {
         //
         let tags = Object.keys(auto).map((tag) => {
             return {
-                text: tag,
+                text: (auto[tag].text && auto[tag].text!='')?auto[tag].text:tag, //.replaceAll('*',''),
+                //text: tag, //.replaceAll('*',''),
+                childrenTypes: (auto[tag].childrenTypes)?auto[tag].childrenTypes:[],
                 type: (auto[tag].type)?auto[tag].type:'',
                 icons: auto[tag].icons,
                 level: auto[tag].level,

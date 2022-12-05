@@ -18,7 +18,7 @@ export const autocomplete = async(parent) =>{
         all_levels: [3,4,5,6,7,8,9,10],
     };
     types.base = {
-        type:  types.type,
+        type:  'view',
         icons: ['idea'],
         level: types.all_levels,
     }
@@ -161,15 +161,21 @@ export const autocomplete = async(parent) =>{
     });
     //console.log('icons_grouped_by_style',icons_grouped_by_style);
     for (let style in icons_grouped_by_style){
-        components['icon:'+style+':'] = parent.extend(types.base,
+        components['icon:'+style+':*'] = parent.extend(types.base,
             {
                 hint: `<b>Material UI Icon</b> - style <b>${style}</b>\n
                        \n<u>Use any of these icons:</u>\n\n 
                        ${icons_grouped_by_style[style].join(', ')}\n\n`,
+                type: 'view-icon',
+                childrenTypes: ['attribute*','event*'],
                 attributes: {
                     '{icon:list}sx': {
                         type: 'object',
                         hint: 'The sx prop is a shortcut for defining custom styles that has access to the theme.'
+                    },
+                    '{icon:list}color': {
+                        type: types.colors.join(', '),
+                        hint: 'The color of the icon, specified as the bgcolor of the node.'
                     },
                     color: {
                         type: types.colors.join(', '),
@@ -471,6 +477,7 @@ export const autocomplete = async(parent) =>{
         {
             extends_: 'ButtonBase', //@todo to be used to extend ourselfs without using the 'extend' method, and identify which attribs are inherited (to colour them differently on the tables)
             hint:'Checkboxes allow the user to select one or more items from a set.',
+            childrenTypes: ['attribute*','event*'],
             attributes:{
                 'checked': {
                     type: 'boolean',
@@ -486,7 +493,7 @@ export const autocomplete = async(parent) =>{
                     type: '{icon:idea}Element,{icon:idea}icon:',
                     default: '{icon:idea}CheckBoxIcon',
                     hint: `The icon to display when the component is checked.`,
-                    posibleChildren: ['icon:','CheckBoxIcon'], //add this node texts to the parents array for the 'icon:' nodes
+                    childrenTypes: ['icon*','view*'],
                 },
                 '{icon:list}classes': {
                     //type: systemProp["marginRight"].type,
