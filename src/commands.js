@@ -1680,8 +1680,12 @@ module.exports = async function(context) {
                                 as_object:true
                             }});
                             // asign child as param
-                            params['attr_' + child.text+''] = context.jsDump(obj.state.object);
-                            context.debug('def_slot child:',params);
+                            if (obj.state.array) {
+                                params['attr_' + child.text+''] = context.jsDump(obj.state.array);
+                            } else {
+                                params['attr_' + child.text+''] = context.jsDump(obj.state.object);
+                                //context.debug('def_slot child:',params);
+                            }
                         }
                     }
                 }
@@ -3321,27 +3325,21 @@ ${tmp.template}
             x_text_contains: 'struct,,',
             x_not_text_contains: 'traducir',
             x_level: '>3',
-            hint: 'Crea una variable de tipo Objeto, con los campos y valores definidos en sus atributos.',
+            hint: 'Creates an object with the attributes/values defined within the node.',
             func: async function(node, state) {
                 let resp = context.reply_template({
-                    state
+                    state,
+                    hasChildren:false
                 });
                 let tmp = {};
+                let tempArray = [];
                 // parse output var
-                tmp.var = node.text.split(',').pop().trim(); //last comma element
-                if (resp.state.from_server) { // if (context.hasParentID(node.id, 'def_event_server')==true) {
-                    tmp.var = tmp.var.replaceAll('$variables.', 'resp.')
-                        .replaceAll('$vars.', 'resp.')
-                        .replaceAll('$params.', 'resp.');
-                    tmp.var = (tmp.var == 'resp.') ? 'resp' : tmp.var;
-                    tmp.parent_server = true;
-                } else {
-                    tmp.var = tmp.var.replaceAll('$variables.', 'this.')
-                        .replaceAll('$store.', 'this.$store.state.')
-                        .replaceAll('$config.', 'this.$config.')
-                        .replaceAll('$params.', 'this.');
-                    tmp.var = (tmp.var == 'this.') ? 'this' : tmp.var;
-                }
+                tmp.var = node.text.split(',').pop().trim(); //last comma element                
+                tmp.var = tmp.var.replaceAll('$variables.', '')
+                    .replaceAll('$store.', 'this.$store.state.')
+                    .replaceAll('$config.', 'this.$config.')
+                    .replaceAll('$params.', '');
+                tmp.var = (tmp.var == 'this.') ? 'this' : tmp.var;
                 // process attributes
                 let attrs = {...node.attributes
                 };
@@ -3350,27 +3348,70 @@ ${tmp.template}
                     let value = node.attributes[key].trim();
                     if (node.icons.includes('bell') && value.includes('**')) {
                         value = getTranslatedTextVar(value,true);
+                    } else if (value.indexOf('{node.')!=-1) {
+                        const extract = require('extractjs')({
+                            startExtract: '-',
+                            endExtract: '-',
+                        });
+                        let elems_ = extract('{node.-key-}',value);
+                        if (elems_.key && elems_.key in node) {
+                            //context.debug('elems_.key: '+elems_.key+' value: '+node[elems_.key]+'');
+                            value = value.replaceAll('{node.'+elems_.key+'}',node[elems_.key]);
+                        }
                     } else if (value.includes('assets:')) {
                         value = context.getAsset(value, 'js');
                     } else {
                         // normalize vue type vars
-                        if (tmp.parent_server==true) {
-                            value = value.replaceAll('$variables.', 'resp.')
-                                .replaceAll('$vars.', 'resp.')
-                                .replaceAll('$params.', 'resp.');
-                        } else {
-                            value = value.replaceAll('$variables.', 'this.')
-                                .replaceAll('$vars.', 'this.')
-                                .replaceAll('$params.', 'this.')
-                                .replaceAll('$store.', 'this.$store.state.');
-                        }
+                        value = value.replaceAll('$variables.', '')
+                            .replaceAll('$vars.', '')
+                            .replaceAll('$params.', '')
+                            .replaceAll('$store.', 'this.$store.state.');
                     }
                     attrs[key] = value; //.replaceAll('{now}','new Date()');
                 });
+                // process children as attributes
+                if (node.nodes_raw.length > 0) {
+                    let children = await node.getNodes();
+                    let isArray = true;
+                    for (let child of children) {
+                        if (Object.keys(child.attributes).length!=0) {
+                            isArray = false;
+                            break;
+                        }
+                    }
+                    for (let child of children) {
+                        if (!isArray) {
+                            let child_ = await context.x_commands['def_struct'].func(child, { ...state, ...{
+                                as_object:true
+                            }});
+                            attrs[child.text] = child_.state.object;
+                        } else {
+                            //preprocess child.text
+                            let tmpval = child.text;
+                            if (tmpval.indexOf('{node.')!=-1) {
+                                const extract = require('extractjs')({
+                                    startExtract: '-',
+                                    endExtract: '-',
+                                });
+                                let elems_ = extract('{node.-key-}',tmpval);
+                                if (elems_.key && elems_.key in child) {
+                                    tmpval = tmpval.replaceAll('{node.'+elems_.key+'}',child[elems_.key]);
+                                }
+                            }
+                            tempArray.push(tmpval);
+                        }
+                    }
+                    if (tempArray.length>0) {
+                        attrs[node.text] = tempArray;
+                    }
+                }
                 // write output
                 if (resp.state.as_object) {
                     resp.state.object = attrs;
                     resp.open = context.jsDump(attrs).replaceAll("'`","`").replaceAll("`'","`");
+                    if (tempArray.length>0) {
+                        resp.state.array = attrs[node.text];
+                    }
                     delete resp.state.as_object;
                 } else {
                     if (node.text_note != '') resp.open = `// ${node.text_note.cleanLines()}\n`;
