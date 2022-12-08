@@ -218,6 +218,14 @@ export const autocomplete = async(parent) =>{
         });
         //
     }
+    // basic event attributes
+    const event_attributes = {
+        ':stop': {
+            type: 'boolean',
+            default: 'true',
+            hint: 'if false prevents stopping event propagations'
+        }
+    };
 
     // ****************************
     // INPUTS:
@@ -291,14 +299,17 @@ export const autocomplete = async(parent) =>{
             },
             events: {
                 focusVisible: {
-                    hint: `Callback fired when the component is focused with a keyboard. Also triggers a 'focus' event.`
+                    hint: `Callback fired when the component is focused with a keyboard. Also triggers a 'focus' event.`,
+                    attributes: event_attributes
                 },
                 focus: {
-                    hint: `Callback fired when the component is focused.`
+                    hint: `Callback fired when the component is focused.`,
+                    attributes: event_attributes
                 },
                 click: {
                     params: 'event',
-                    hint: `Callback fired when the button is clicked.`
+                    hint: `Callback fired when the button is clicked.`,
+                    attributes: event_attributes
                 }
             }
         }

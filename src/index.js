@@ -296,7 +296,7 @@ export default class react_dsl extends concepto {
         // default devDependencies
         this.x_state.dev_npm['@babel/core'] = '^7.15.8';
         this.x_state.dev_npm['@babel/plugin-transform-runtime'] = '^7.15.8';
-        this.x_state.dev_npm['@babel/babel-plugin-direct-import'] = '^7.15.8';
+        this.x_state.dev_npm['babel-plugin-direct-import'] = '*'; // '^7.15.8';
         this.x_state.dev_npm['@babel/preset-env'] = '^7.15.8';
         this.x_state.dev_npm['@babel/preset-react'] = '^7.14.5';
         this.x_state.dev_npm['autoprefixer'] = '^10.1.0';
@@ -395,6 +395,7 @@ export default class react_dsl extends concepto {
         }
         html += `</tr>`;
         //table rows
+        this.debug('table DEBUG',table);
         for (let row in table) {
             if (table[row].inherited_ && table[row].inherited_==true) {
                 html += `<tr bgcolor='${theme.tr_inherited_bgcolor}'>`;
@@ -1100,11 +1101,6 @@ ${this.x_state.dirs.compile_folder}/`;
         let cheerio = require('cheerio');
         //console.log('PABLO beforeInteralTags:',{ template:react.template, script:react.script });
         let $ = cheerio.load(react.template, { ignoreWhitespace: false, xmlMode: true, decodeEntities: false });
-        //console.log('PABLO after:',$.html()); 
-        //return react;
-        //
-        let nodes = $(`def_param`).toArray();
-        if (nodes.length > 0) this.debug('post-processing def_param tags');
         const self = this;
         const removeSpecialRefx = (content) => {
             //removes attrs refx from given content without using cheerio
@@ -1119,6 +1115,11 @@ ${this.x_state.dirs.compile_folder}/`;
             }
             return new_;
         };
+        //
+        // PROCESS DEF_PARAM VIRTUAL TAGS
+        //
+        let nodes = $(`def_param`).toArray();
+        if (nodes.length > 0) this.debug('post-processing def_param tags');
         //nodes.map(function(elem) {
         for (let i = 0; i < nodes.length; i++) {
             const elem = nodes[i];
@@ -1126,19 +1127,26 @@ ${this.x_state.dirs.compile_folder}/`;
             let special_x = {};
             let cur = $(elem);
             const attribs = cur.attr();
+            //this.debug('def_param attribs BEFORE',attribs);
             // search partial attributes attr_?
             for (let key in attribs) {
                 if (key.indexOf('x_attr') > -1) {
                     special_x[key.replace('x_attr_', '')] = cur.attr(key);
+                } else if (key.indexOf('attr_') > -1 && key.indexOf('-') > -1) {
+                    value[key.replace('attr_', '').replaceAll('-','&:')] = cur.attr(key);
+                } else if (key.indexOf('attr_') > -1 && key.indexOf('$') > -1) {
+                    value[key.replace('attr_', '').replaceAll('$',',')] = cur.attr(key);
                 } else if (key.indexOf('attr_') > -1) {
                     value[key.replace('attr_', '')] = cur.attr(key);
                 }
             }
+            //this.debug('def_param value',value);
             // do {node.value} mapping to key values
             const extract = require('extractjs')({
                 startExtract: '-',
                 endExtract: '-',
             });
+            
             for (let key in value) {
                 //@todo replace with extractJS npm module
                 const special = extract(`{node.-key-}`, value[key]);
@@ -1161,14 +1169,35 @@ ${this.x_state.dirs.compile_folder}/`;
             delete value['is_view'];
             // get target node
             let target_node = $(`*[refx=${cur.attr('target_id')}]`).toArray();
-            if (target_node.length != -1) {
+            /*if (target_node.length == 0) {
+                //if target node is not found, try to find its parent (maybe it was a text or virtual tag)
+                this.debug('DADDY NOT FOUND');
+                target_node = $(`*[refx=${cur.attr('targetparent_id')}]`).toArray();
+                this.debug('GRAND DADDY?',target_node.length);
+                //let target_ = $(target_node[0]);
+            }*/
+            if (target_node.length>0) {
                 //build value for attr
                 let target_ = $(target_node[0]);
                 let val = '';
                 let inner = cur.html();
                 if (cur.attr('is_function') && cur.attr('is_function')=="true") {
                     //wrap contents in a function within the value of the parent attribute
-                    val = self.serializeComplexAttr(`()=>{ ${cur.html()} }`);
+                    //prepend event stop propagation if not :stop
+                    let function_params = [];
+                    let function_inner = '';
+                    if (value[':stop'] && value[':stop']=="false") {
+                        function_inner += cur.html();
+                    } else {
+                        function_inner = `event.stopPropagation(); `+cur.html();
+                    }
+                    if (function_inner.indexOf('event.')!=-1) {
+                        function_params.push('event');
+                    }
+                    if (function_inner.indexOf('params.')!=-1) {
+                        function_params.push('params');
+                    }
+                    val = self.serializeComplexAttr(`(${function_params.join(',')})=>{ ${function_inner} }`);
                 } else if (cur.attr('is_view') && cur.attr('is_view')=="true") {
                     //before processing, check if within us we need to call ourselfs 
                     //this.debug('def_param inner',inner);
@@ -1183,6 +1212,7 @@ ${this.x_state.dirs.compile_folder}/`;
                     val = self.serializeComplexAttr(inner);
                 } else {
                     //assign 'value' to parent 'name' attr
+                    //this.debug('val before processing attr',{ value, serialized:self.jsDump(value) });
                     val = self.serializeComplexAttr(self.jsDump(value));
                 }
                 //encrypt value for attr
@@ -1191,6 +1221,9 @@ ${this.x_state.dirs.compile_folder}/`;
             cur.remove(); // remove ourselfs
         };
         react.template = $.html();
+        //
+        // PROCESS other * VIRTUAL TAGS
+        //
         /* 
         if (nodes.length > 0) vue.script += `}\n`;
         // process ?mounted event
@@ -3867,6 +3900,7 @@ export const decorators = [
                 ob.indexOf(`'`)!=-1 || 
                 ob.indexOf('`')!=-1 ||
                 (ob.charAt(0)!='0' && isNumeric(ob)) ||
+                (ob.charAt(0)=='[' && ob.charAt(ob.length-1)==']') ||
                 ob=='0' || 
                 ob=='true' || ob=='false')
                 ) {
@@ -3904,6 +3938,8 @@ export const decorators = [
                 for (let llave in obj) {
                     let llavet = llave;
                     if (llavet.includes('-') && llavet.includes(`'`)==false) llavet = `'${llave}'`;
+                    if (llavet.includes('&') && llavet.includes(`'`)==false) llavet = `'${llave}'`;
+                    if (llavet.includes(':') && llavet.includes(`'`)==false) llavet = `'${llave}'`;
                     let nuevo = `${llavet}: `;
                     let valor = obj[llave];
                     if (typeof valor === 'object' || Array.isArray(valor)) {

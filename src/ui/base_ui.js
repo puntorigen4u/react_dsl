@@ -295,7 +295,7 @@ export class base_ui {
                             level: [],
                             childrenTypes: (auto[tag].events[event].childrenTypes)?auto[tag].events[event].childrenTypes:[],
                             hint: auto[tag].events[event].hint,
-                            attributes: (auto[tag].events[event].params)?params2attr(auto[tag].events[event].params):{}
+                            attributes: (auto[tag].events[event].params)?params2attr(auto[tag].events[event].params):(auto[tag].events[event].attributes)?auto[tag].events[event].attributes:{}
                         };
                     } else {
                         // if it already existed, add to parents array if it was not there already

@@ -1,6 +1,6 @@
 {
   "name": "@concepto/react",
-  "version": "0.0.291",
+  "version": "0.0.292",
   "description": "Concepto DSL - Visually create and maintain modern Node.js based web apps (@react)",
   "keywords": [
     "creador",
@@ -50,7 +50,7 @@
     "deepmerge": "^4.2.2",
     "encrypt-with-password": "^1.0.0",
     "extractjs": "^0.3.1",
-    "fast-case": "^1.6.0",
+    "fast-case": "^1.7.0",
     "fs-extra": "^9.1.0",
     "he": "^1.2.0",
     "ini": "^1.3.8",
