@@ -395,7 +395,6 @@ export default class react_dsl extends concepto {
         }
         html += `</tr>`;
         //table rows
-        this.debug('table DEBUG',table);
         for (let row in table) {
             if (table[row].inherited_ && table[row].inherited_==true) {
                 html += `<tr bgcolor='${theme.tr_inherited_bgcolor}'>`;
@@ -433,11 +432,13 @@ export default class react_dsl extends concepto {
 		}
 		html += `<b>${keyword}</b><br /><br />`;
         if (record.extends_ && record.extends_!='') {
-			html += render.placeholders(`Extends {icon:idea}<b>${record.extends_}</b><br/>`);
+			html += render.placeholders(`Extends {icon:idea}<b>${record.extends_.replaceAll('-private-','')}</b><br/>`);
 		}
 		html += `${hint}<br /><br />`;
-		html += render.attrs(attributes,renderIcon);
-		html += `<br />`;
+        if (Object.keys(attributes).length>0) {
+            html += render.attrs(attributes,renderIcon);
+            html += `<br />`;
+        }
         const customRender = {
             ...render,
             ...{
@@ -3164,7 +3165,12 @@ export const decorators = [
                         grouped[page.imports[var_]].push(var_);
                     }
                     for (let key in grouped) {
-                        script_imports += `import { ${grouped[key].join(',')} } from '${key}';\n`;
+                        if (key.indexOf('/')!=-1 && key.indexOf(grouped[key])!=-1) {
+                            // if import key is part of the package key string (and contains a /), then do a direct import
+                            script_imports += `import ${grouped[key].join(',')} from '${key}';\n`;
+                        } else {
+                            script_imports += `import { ${grouped[key].join(',')} } from '${key}';\n`;
+                        }
                     }
                 }
                 // ************************************

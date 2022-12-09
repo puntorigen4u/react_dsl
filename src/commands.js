@@ -697,6 +697,61 @@ module.exports = async function(context) {
             x_not_icons: 'list',
             x_not_text_contains: ':',
             hint: 'ReactJS view instance',
+            autocomplete: (()=>{
+                // this method needs to return an Object
+                // add support for 'UnDraw*' icons
+                let ac = {};
+                let icons = 'AboutUsPage,AcceptTerms,Account,ActiveSupport,ADayAtThePark,AddFiles,Address,AddToCart,AddUser,Agreement,Airport,AirSupport,Alert,AlienScience,Analysis,Android,AppInstallation,Appreciation,ArtificialIntelligence,ArtLover,Astronaut,AtWork,Autumn,Baby,BackInTheDay,BackToSchool,Basketball,Beach,BeerCelebration'.split(',');
+                // for each icon 
+                for (let icon of icons) {
+                    // add a new autocomplete item
+                    ac['UnDraw'+icon] = {
+                        type: 'view',
+                        icons: ['idea'], // should be by default the x_command icon
+                        text: `UnDraw${icon}`,
+                        hint: `UnDraw ${icon} icon`,
+                        childrenTypes: ['attribute*'],
+                        attributes: {
+                            '{icon:list}class':{
+                                type:'string',
+                                default:'',
+                                hint:'Defines the class for the svg'
+                            },
+                            '{icon:list}height':{
+                                type:'string, number',
+                                default:'250px',
+                                hint:'Defines the height for the svg; can also be a percentage'
+                            },
+                            '{icon:list}primaryColor':{
+                                type:'string',
+                                default:'#6c68fb',
+                                hint:'Defines the primary color for the svg'
+                            }
+                        }
+                    };
+                    // modify special cases
+                    if (icon == 'Designer') {
+                        ac['UnDraw'+icon].attributes = {...ac['UnDraw'+icon].attributes,...{
+                            '{icon:list}skinColor':{
+                                type:'string',
+                                default:'#F2F2F2',
+                                hint:'Defines the skin color for the svg'
+                            },
+                            '{icon:list}hairColor':{
+                                type:'string',
+                                default:'#A97842',
+                                hint:'Defines the hair color for the svg'
+                            },
+                            '{icon:list}accentColor':{
+                                type:'string',
+                                default:'#6c68fb',
+                                hint:'Defines the accent color for the svg'
+                            }
+                        }};
+                    }
+                }
+                return ac;
+            })(),
             func: async function(node, state) {
                 let resp = context.reply_template({
                     state
@@ -712,6 +767,17 @@ module.exports = async function(context) {
                     extra_imports: []
                 };
                 let npms = {};
+                //special case if node contains 'UnDraw' icon
+                if (node.text.indexOf('UnDraw') != -1) {
+                    let image = node.text.trim();
+                    context.x_state.npm = {...context.x_state.npm,...{
+                        'react-undraw-illustrations': '*'
+                    }};
+                    if (resp.state.current_page && resp.state.current_page in context.x_state.pages) {
+                        context.x_state.pages[resp.state.current_page].imports[image] = `react-undraw-illustrations/lib/components/${image}`;   
+                    }
+                }
+                //
                 Object.keys(node.attributes).map(function(key) {
                     let keytest = key.toLowerCase().trim();
                     let value = node.attributes[key].trim();
@@ -813,7 +879,7 @@ module.exports = async function(context) {
                                                                                             .replaceAll('.','_')
                                                                                             .toLowerCase().trim();
                 if (Object.keys(attrs.config)=='') delete context.x_state.plugins[f_npm].config;
-                if (resp.state.current_page && resp.state.current_page in context.x_state.pages) {
+                if (resp.state.current_page && resp.state.current_page in context.x_state.pages && node.text.indexOf('UnDraw')==-1) {
                         let assign_ = tmp.tag.trim();
                         //@idea maybe we could check if assign_ exists on given imports package
                         /*let assign_ = tmp.tag   .replaceAll('-','')
@@ -1679,33 +1745,40 @@ module.exports = async function(context) {
                         resp.hasChildren = false;
                         // process children with ourselfs 
                         let children = await node.getNodes();
-                        for (let i=0; i<children.length; i++) {
-                            let child = children[i];
-                            let obj = await context.x_commands['def_struct'].func(child, { ...state, ...{
-                                as_object:true
-                            }});
-                            // asign child as param
-                            let tmpkey = child.text.replaceAll('&:','-').replaceAll('.','$');
-                            //context.debug('def_slot params BEFORE',params);
-                            if (obj.state.array) {
-                                let mainkey = Object.keys(obj.state.object)[0];
-                                params['attr_' + tmpkey] = context.jsDump(obj.state.array);
-                                //context.debug('def_slot array',context.jsDump(obj.state.array));
-                            } else {
-                                params['attr_' + tmpkey] = context.jsDump(obj.state.object);
-                                // test if object is empty, if so, test special cases
-                                if (Object.keys(obj.state.object).length==0) {
-                                    if (child.bgcolor!='') {
-                                        //add as 'special' node attributes
-                                        params['attr_' + tmpkey] = child.bgcolor.toUpperCase();
-                                    } else if (child.color!='') {
-                                        //add as 'special' node attributes
-                                        params['attr_' + tmpkey] = child.color.toUpperCase();
+                        if (children.length==1 && children[0].icons.length==0) {
+                            // has a single child without icons (means it's a single value)
+                            //context.debug('def_slot with single value node',children[0].text);
+                            params['x_attr_'+node.text] = context.jsDump(children[0].text.trim());
+                        } else {
+                            // has several children                        
+                            for (let i=0; i<children.length; i++) {
+                                let child = children[i];
+                                let obj = await context.x_commands['def_struct'].func(child, { ...state, ...{
+                                    as_object:true
+                                }});
+                                // asign child as param
+                                let tmpkey = child.text.replaceAll('&:','-').replaceAll('.','$');
+                                //context.debug('def_slot params BEFORE',params);
+                                if (obj.state.array) {
+                                    let mainkey = Object.keys(obj.state.object)[0];
+                                    params['attr_' + tmpkey] = context.jsDump(obj.state.array);
+                                    //context.debug('def_slot array',context.jsDump(obj.state.array));
+                                } else {
+                                    params['attr_' + tmpkey] = context.jsDump(obj.state.object);
+                                    // test if object is empty, if so, test special cases
+                                    if (Object.keys(obj.state.object).length==0) {
+                                        if (child.bgcolor!='') {
+                                            //add as 'special' node attributes
+                                            params['attr_' + tmpkey] = child.bgcolor.toUpperCase();
+                                        } else if (child.color!='') {
+                                            //add as 'special' node attributes
+                                            params['attr_' + tmpkey] = child.color.toUpperCase();
+                                        }
                                     }
+                                    //context.debug('def_slot child:',params);
                                 }
-                                //context.debug('def_slot child:',params);
+                                //context.debug('def_slot params AFTER',params);
                             }
-                            //context.debug('def_slot params AFTER',params);
                         }
                         //context.debug('def_slot params',params);
                     }
@@ -1730,12 +1803,14 @@ module.exports = async function(context) {
                 //params.refx = node.id;
                 resp.open += context.tagParams('def_param',params,false)+'\n';
                 resp.close = '</def_param>\n';
+                //context.debug('def_param',resp);
                 if (node.getNodes().length>1 && node.icons.includes('idea')) {
                     // if there's more than 1 child and icon idea, then wrap within a React.Fragment
                     resp.open += '<>';
                     resp.close = '</>'+resp.close;
                 }
                 resp.state.from_slot=true;
+                resp.state.params = params;
                 return resp;
             }
         },
@@ -3276,7 +3351,7 @@ ${tmp.template}
                 // process attributes
                 let attrs = {...node.attributes
                 };
-                context.debug('def_struct START',{ text:node.text, attrs:attrs, var:tmp.var });
+                //context.debug('def_struct START',{ text:node.text, attrs:attrs, var:tmp.var });
                 Object.keys(node.attributes).map(function(key) {
                     let keytest = key.toLowerCase().trim();
                     let value = node.attributes[key].trim();
@@ -3321,13 +3396,13 @@ ${tmp.template}
                             break;
                         }
                     }
-                    context.debug('def_struct IS_ARRAY',isArray);
+                    //context.debug('def_struct IS_ARRAY',isArray);
                     for (let child of children) {
                         if (!isArray) {
                             let child_ = await context.x_commands['def_struct'].func(child, { ...state, ...{
                                 as_object:true
                             }});
-                            context.debug('child_',child_);
+                            //context.debug('child_',child_);
                             if (child_.state.array) {
                                 attrs[child.text] = child_.state.array;
                             } else {
