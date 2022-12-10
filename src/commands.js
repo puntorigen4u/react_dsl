@@ -182,7 +182,7 @@ module.exports = async function(context) {
     };
     
     return {
-        //'cancel': {...null_template,...{ x_icons:'button_cancel'} },
+        'cancel': {...null_template,...{ x_icons:'button_cancel'} },
         'meta': {...null_template, ...{
                 name: 'ReactJS / MF',
                 version: '0.0.1',
@@ -745,55 +745,49 @@ module.exports = async function(context) {
                 Typing,Upload,Upvote,Vault,VirtualReality,VrChat,WalkInTheCity,WallPost,Weather,WebDevices,WebsiteSetup,Welcome,Windows,WindowShopping,
                 WinterOlympics,Wireframing,Wishes,Woman,WomenDay,WordOfMouth,WorkChat,Working,WorkingLate,Workout,WorkTime,
                 Yatch,YoungAndHappy`.split(',');
-                // for each icon 
+                // create an 'undraw-icon' item for every undraw icon 
                 for (let icon of icons) {
-                    // add a new autocomplete item
                     icon = icon.replaceAll('\n','').trim();
-                    ac['UnDraw'+icon] = {
-                        type: 'view',
-                        icons: ['idea'], // should be by default the x_command icon
-                        text: `UnDraw${icon}`,
-                        hint: `UnDraw ${icon} icon`,
-                        childrenTypes: ['attribute*'],
-                        attributes: {
-                            '{icon:list}class':{
-                                type:'string',
-                                default:'',
-                                hint:'Defines the class for the svg'
-                            },
-                            '{icon:list}height':{
-                                type:'string, number',
-                                default:'250px',
-                                hint:'Defines the height for the svg; can also be a percentage'
-                            },
-                            '{icon:list}primaryColor':{
-                                type:'string',
-                                default:'#6c68fb',
-                                hint:'Defines the primary color for the svg'
-                            }
-                        }
+                    ac['undraw_icon_'+icon] = {
+                        type: 'undraw-icon',
+                        icons: [],
+                        parents: ['name'],
+                        text: `${icon}`,
+                        hint: `UnDraw ${icon} svg image`,
+                        attributes: {}
                     };
-                    // modify special cases
-                    if (icon == 'Designer') {
-                        ac['UnDraw'+icon].attributes = {...ac['UnDraw'+icon].attributes,...{
-                            '{icon:list}skinColor':{
-                                type:'string',
-                                default:'#F2F2F2',
-                                hint:'Defines the skin color for the svg'
-                            },
-                            '{icon:list}hairColor':{
-                                type:'string',
-                                default:'#A97842',
-                                hint:'Defines the hair color for the svg'
-                            },
-                            '{icon:list}accentColor':{
-                                type:'string',
-                                default:'#6c68fb',
-                                hint:'Defines the accent color for the svg'
-                            }
-                        }};
-                    }
                 }
+                // create single 'undraw' idea command 
+                ac['UnDraw'] = {
+                    type: 'view',
+                    icons: ['idea'], // should be by default the x_command icon
+                    text: `UnDraw`,
+                    hint: `UnDraw svg image`,
+                    childrenTypes: ['attribute*'],
+                    attributes: {
+                        '{icon:list}name':{
+                            type:'string',
+                            default:'',
+                            childrenTypes: ['undraw-icon'],
+                            hint:'Defines the name of the icon to show'
+                        },
+                        '{icon:list}class':{
+                            type:'string',
+                            default:'',
+                            hint:'Defines the class for the svg'
+                        },
+                        '{icon:list}height':{
+                            type:'string, number',
+                            default:'250px',
+                            hint:'Defines the height for the svg; can also be a percentage'
+                        },
+                        '{icon:list}primaryColor':{
+                            type:'string',
+                            default:'#6c68fb',
+                            hint:'Defines the primary color for the svg'
+                        }
+                    }
+                };
                 return ac;
             })(),
             func: async function(node, state) {
@@ -811,9 +805,31 @@ module.exports = async function(context) {
                     extra_imports: []
                 };
                 let npms = {};
-                //special case if node contains 'UnDraw' icon
+                //special case if node contains/is 'UnDraw' icon
                 if (node.text.indexOf('UnDraw') != -1) {
                     let image = node.text.trim();
+                    if (image=='UnDraw') {
+                        // search children for name of icon
+                        let children = await node.getNodes();
+                        for (let child of children) {
+                            if (child.icons.includes('list') && child.text.toLowerCase().trim().indexOf('name') != -1) {
+                                // grab child->child (grandchild)
+                                let grandchild = await child.getNodes();
+                                // nullify this node child () so to not process it with other commands
+                                await context.dsl_parser.editNode({ node_id:child.id, data:{
+                                    icons: ['button_cancel']
+                                }, children:false });
+                                // if grandchild exists, use it
+                                if (grandchild.length>0) {
+                                    grandchild = grandchild[0];
+                                    image = 'UnDraw'+grandchild.text;
+                                    tmp.tag = image;
+                                    delete node.attributes['name'];
+                                    break;
+                                }
+                            }
+                        }
+                    }
                     context.x_state.npm = {...context.x_state.npm,...{
                         'react-undraw-illustrations': '*'
                     }};
