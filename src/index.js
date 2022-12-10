@@ -3945,7 +3945,15 @@ export const decorators = [
                 //little hack that works together with writeFile method
                 resp.push(`${key}="xpropx"`); 
             } else if (typeof value !== 'object' && typeof value !== 'function' && typeof value !== 'undefined') {
-                resp.push(`${key}="${value}"`);
+                if (key[0] == ':') {
+                     //serialize value
+                     this.debug('struct2params',{key,value});
+                    let encrypt = require('encrypt-with-password');
+                    const val = encrypt.encryptJSON(value,'123');
+                    resp.push(`${key.replaceAll(':','')}_encrypt="${val}"`);
+                } else {
+                    resp.push(`${key}="${value}"`);
+                }
             } else if (typeof value === 'object') {
                 //serialize value
                 let encrypt = require('encrypt-with-password');

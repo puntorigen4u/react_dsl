@@ -129,14 +129,15 @@ module.exports = async function(context) {
             let key_use = key.trim();
             if (key_use.charAt(0)==':') key_use = key_use.right(key_use.length-1);
             let keytest = key_use.toLowerCase();
-            let tvalue = value.toString().replaceAll('$variables.', variables_to)
+            /*let tvalue = value.toString().replaceAll('$variables.', variables_to)
                 .replaceAll('$vars.', variables_to)
-                .replaceAll('$params.', variables_to)
+                //.replaceAll('$params.', variables_to)
                 .replaceAll('$config.', variables_to+'$config.')
                 .replaceAll('$store.', variables_to+'$store.state.').trim();
             if (tvalue.charAt(0)=='$' && tvalue.includes('$store')==false && tvalue.includes('$event')==false && tvalue.includes('$config')==false) {
                 tvalue = tvalue.right(tvalue.length-1);
-            }
+            }*/
+            let tvalue = value.toString();
             //
             //tvalue = getTranslatedTextVar(tvalue);
             if (keytest == 'props') {
@@ -619,6 +620,7 @@ module.exports = async function(context) {
                 let isNumeric = function(n) {
                     return !isNaN(parseFloat(n)) && isFinite(n);
                 };
+                
                 for (let key in params) {
                     if (key.charAt(0)!=':' && (params[key].charAt(0)!='0' || params[key]=='0') && (
                         isNumeric(params[key])==true || params[key]=='true' || params[key]=='false')) {
@@ -627,7 +629,7 @@ module.exports = async function(context) {
                     }
                 }
                 //
-                if (node.text_note != '') resp.open = `<!-- ${node.text_note.cleanLines()} -->\n`;
+                if (node.text_note != '') resp.open = `{ /* ${node.text_note.cleanLines()} */ }\n`;
                 if (!params.refx) params.refx=node.id;
                 resp.open += context.tagParams(tag_name, params, false) + '\n';
                 resp.close = `</${tag_name}>\n`;
