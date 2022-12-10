@@ -510,10 +510,15 @@ export default class react_dsl extends concepto {
 
         } else if (node.text.indexOf('component:') != -1) {
             resp = node.text.split(':')[node.text.split(':').length - 1] + '.js';
+            // ensure to capitalize first letter
+            resp = resp[0].toUpperCase() + resp.slice(1);
         } else if (node.text.indexOf('layout:') != -1) {
             resp = node.text.split(':')[node.text.split(':').length - 1] + '.js';
         } else if (node.icons.includes('list')) {
             resp = resp.replaceAll('.js','.group');
+        } else {
+            //page node (ensure to capitalize first letter)
+            resp = resp[0].toUpperCase() + resp.slice(1);
         }
         return resp;
     }
@@ -2068,7 +2073,7 @@ ${cur.attr('name')}: {
         return (
             {appJSX.open}
             <div className="container">
-            <Home/>
+            {appJSX.routes}
             </div>
             {appJSX.close}
         )
@@ -2077,20 +2082,52 @@ ${cur.attr('name')}: {
         `;
         // get pages {appJSX.import_pages} 
         // iterate this.x_state.pages, and grab file names from processedNodes 
-        let import_pages = '';
+        let import_pages = ''; let pages = [];
         for (let thefile_num in processedNodes)  {
             let thefile = processedNodes[thefile_num];
             let page = this.x_state.pages[thefile.title];
             if (page) {
                 const name = thefile.file.split('.')[0];
                 if (page.type=='page') {
+                    pages.push({ name, params:page.params, defaults:page.defaults, path:page.path });
                     import_pages += `import { ${name} } from "./pages";\n`;
                 }
             }
         }
         appJSX = appJSX.replace('{appJSX.import_pages}', import_pages);
         //
-        const JSX_imports = await this.x_theme.AppImports();
+        let JSX_imports = await this.x_theme.AppImports();
+        //@todo add support for react-dom-router
+        //sort pages from longest path to shortest (first to match wins on react-router)
+        pages.sort(function(a,b) {
+            let sort_order=-1; //desc=-1
+            if (a.path.length < b.path.length) {
+                return -1 * sort_order;
+            } else if (a.path.length > b.path.length) {
+                return 1 * sort_order;
+            } else {
+                return 0 * sort_order;
+            }
+        });
+        //this.debug('pages',pages);
+        if (pages.length==1) {
+            appJSX = appJSX.replace('{appJSX.routes}', `<Home/>`);
+        } else {
+            // add react-dom-router import and a switch for each page
+            this.x_state.npm['react-router-dom']='5.3.3';
+            //this.x_state.npm['localforage']='*';
+            //this.x_state.npm['match-sorter']='*';
+            //this.x_state.npm['sort-by']='*';
+            JSX_imports += `import { BrowserRouter as Router, Route, Switch } from "react-router-dom";`;
+            let switch_ = { open:'', close:'' };
+            switch_.open = `<Router>\n<Switch>\n`;
+            switch_.close = `</Switch>\n</Router>\n`;
+            for (let page in pages) {
+                switch_.open += `<Route exact path="${pages[page].path}" component={${pages[page].name}} />\n`;
+            }
+            appJSX = appJSX.replace('{appJSX.routes}', switch_.open + switch_.close);
+        }
+        //
         appJSX = appJSX.replace('{appJSX.imports}', JSX_imports);
         const JSX_wrap = await this.x_theme.AppWrap();
         appJSX = appJSX.replace('{appJSX.open}', JSX_wrap.open);
@@ -3102,6 +3139,17 @@ export const decorators = [
 
     //Transforms the processed nodes into files.
     async onCreateFiles(processedNodes) {
+        //copy our 'autocomplete' assets folder to this.autocomplete.path
+        if (this.autocomplete && this.autocomplete.path && this.autocomplete.path!='') {
+            const path = require('path');
+            const sourceAssets = path.join(__dirname,'assets','autocomplete');
+            this.debug(`- copying react autocomplete assets to project .autocomplete folder`); //+this.autocomplete.path
+            let copy = require('recursive-copy');
+            try {
+                await copy(sourceAssets, this.autocomplete.path, { overwrite: true });
+            } catch(ercp) {
+            }
+        }
         //this.x_console.out({ message:'onCreateFiles', data:processedNodes });
         //this.x_console.out({ message:'x_state.plugins', data:this.x_state.plugins });
         await this.generalConfigSetup();
@@ -3190,6 +3238,7 @@ export const decorators = [
 
                 export const {concepto:name} = ({concepto:attributes}) => {
                     {concepto:variables}
+                    {concepto:params}
                     {concepto:init}
                     {concepto:methods}
                     return (
@@ -3198,15 +3247,16 @@ export const decorators = [
                         </>
                     )
                 }`;
-                react.script = react.script.replaceAll('{concepto:import}',script_imports);
+                
                 react.script = react.script.replaceAll('{concepto:name}',thefile.file.split('.')[0]);
                 react.script = react.script.replaceAll('{concepto:variables}',react.variables);
                 react.script = react.script.replaceAll('{concepto:template}',react.template);
                 react.script = react.script.replaceAll('{concepto:init}',''); //@todo
                 react.script = react.script.replaceAll('{concepto:methods}',''); //@todo
-                if (page.params=='') {
+                //page.params is only for components not pages
+                if (page.params=='' || page.type=='page') {
                     react.script = react.script.replaceAll('{concepto:attributes}','{ children }');
-                } else {
+                } else if (page.type!='page') {
                     let multiparams = page.params;
                     if (page.params.indexOf(',')==-1) {
                         multiparams = [page.params];
@@ -3217,6 +3267,35 @@ export const decorators = [
                     }
                     react.script = react.script.replaceAll('{concepto:attributes}',`{ ${multiparams} }`);
                 }
+                // add support for page params
+                let pageParams = '';
+                if (page.type=='page' && page.params!='') {
+                    if (!this.x_state.npm['react-router-dom']) this.x_state.npm['react-router-dom']='5.3.3';
+                    script_imports += `import { useLocation } from 'react-router-dom';\n`;
+                    pageParams += `const location_ = useLocation();\n`;
+                    pageParams += `const query_ = new URLSearchParams(location_.search);\n`;
+                    pageParams += `const $params = {};\n`;
+                    page.params.split(',').map(function(param) {
+                        pageParams += `$params['${param}'] = query_.get('${param}')`;
+                        if (page.defaults && page.defaults[param]) {
+                            pageParams += ` || '${page.defaults[param]}'`;
+                        }
+                        pageParams += `;\n`;
+                    });
+                } else if (page.params!='') {
+                    //remap each prop argument to $params
+                    pageParams += `const $params = {};\n`;
+                    page.params.split(',').map(function(param) {
+                        pageParams += `$params['${param}'] = ${param}`;
+                        if (page.defaults && page.defaults[param]) {
+                            pageParams += ` || '${page.defaults[param]}'`;
+                        }
+                        pageParams += `;\n`;
+                    });
+                }
+                react.script = react.script.replaceAll('{concepto:params}',pageParams); //@todo
+                // add imports
+                react.script = react.script.replaceAll('{concepto:import}',script_imports);
                 // **** **** end script wrap **** **** 
                 // process Mixins
                 //-23nov22- react = this.processMixins(react, page);

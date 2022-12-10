@@ -50,12 +50,10 @@ module.exports = async function(context) {
         if (tmp.var.includes('$')) {
             if (state.from_server) {
                 tmp.var = tmp.var.replaceAll('$variables.', 'resp.')
-                                .replaceAll('$vars.', 'resp.')
-                                .replaceAll('$params.', 'resp.');
+                                .replaceAll('$vars.', 'resp.');
             } else {
                 tmp.var = tmp.var.replaceAll('$variables.', 'this.')
                                 .replaceAll('$vars.', 'this.')
-                                .replaceAll('$params.', 'this.')
                                 .replaceAll('$config.', 'this.$config.')
                                 .replaceAll('$store.', 'this.$store.state.');
                 if (tmp.var=='this.') tmp.var='this';
@@ -72,12 +70,10 @@ module.exports = async function(context) {
         } else if (tmp.original.includes('$')) {
             if (state.from_server) {
                 tmp.original = tmp.original.replaceAll('$variables.', 'resp.')
-                                            .replaceAll('$vars.', 'resp.')
-                                            .replaceAll('$params.', 'resp.');
+                                            .replaceAll('$vars.', 'resp.');
             } else {
                 tmp.original = tmp.original.replaceAll('$variables.', 'this.')
                                             .replaceAll('$vars.', 'this.')
-                                            .replaceAll('$params.', 'this.')
                                             .replaceAll('$config.', 'this.$config.')
                                             .replaceAll('$store.', 'this.$store.state.');
                 if (tmp.original=='this.') tmp.original='this';
@@ -297,7 +293,6 @@ module.exports = async function(context) {
                     // preprocess value
                     value = value.replaceAll('$variables.', '')
                         .replaceAll('$vars.', '')
-                        .replaceAll('$params.', '')
                         .replaceAll('$store.', '$store.state.');
                     // query attributes
                     if (['proxy'].includes(key.toLowerCase())) {
@@ -340,7 +335,7 @@ module.exports = async function(context) {
                         //context.x_state.pages[resp.state.current_page].xtitle = value;
                         
                     }
-                    if (resp.state.from_def_layout || resp.state.from_def_componente) {
+                    //if (resp.state.from_def_layout || resp.state.from_def_componente) {
                         if (key=='params') {
                             context.x_state.pages[resp.state.current_page].params=value;
                         } else if (key.includes('params:') || key.includes('param:')) {
@@ -348,11 +343,11 @@ module.exports = async function(context) {
                             context.x_state.pages[resp.state.current_page].defaults[tmpo] = value;
                         }
                         //console.log('PABLO COMPONENTE!! o LAYOUT!!',{ key, value });
-                    }
+                    //}
                 }.bind(this));
                 // has comments ?
                 if (node.text_note != '') {
-                    resp.open = `<!-- ${node.text_note.cleanLines()} -->\n`;
+                    resp.open = `{ /* ${node.text_note.cleanLines()} */ }\n`;
                 }
                 // set code
                 /*
@@ -671,7 +666,6 @@ module.exports = async function(context) {
                     } else if (value.includes('$')) {
                         value = value.replaceAll('$variables.', 'this.')
                             .replaceAll('$vars.', 'this.')
-                            .replaceAll('$params.', 'this.')
                             .replaceAll('$store.', 'this.$store.state.');
                     } else if (value.includes('this.') == false) {
                         //@TODO add i18n support here
@@ -697,7 +691,7 @@ module.exports = async function(context) {
             x_not_icons: 'list',
             x_not_text_contains: ':',
             hint: 'ReactJS view instance',
-            autocomplete: (()=>{
+            autocomplete: await (async()=>{
                 // this method needs to return an Object
                 // add support for 'UnDraw*' icons
                 let ac = {};
@@ -712,7 +706,7 @@ module.exports = async function(context) {
                 CloudSync,Coding,Collaboration,Collecting,Collection,Community,Confirmation,Confirmed,
                 Connected,ConnectingTeams,ContainerShip,Contrast,ControlPanel,Conversation,CountrySide,
                 Couple,Coworkers,CoWorking,Create,CreationProcess,Creativity,
-                CreditCard,CreditCardPayment,CreditCardPayments,CrypoFlowers,CustomerSurvey,DarkAlley,
+                CreditCard,CreditCardPayment,CreditCardPayments,CryptoFlowers,CustomerSurvey,DarkAlley,
                 Dashboard,Data,DataReport,Delivery,Departing,Depi,
                 DesignCommunity,Designer,DesignerGirl,DesignerLife,DesignProcess,DesignTools,
                 Destination,Development,Devices,DigitalNomad,Doctor,Documents,DroneDelivery,DroneRace,
@@ -746,24 +740,41 @@ module.exports = async function(context) {
                 WinterOlympics,Wireframing,Wishes,Woman,WomenDay,WordOfMouth,WorkChat,Working,WorkingLate,Workout,WorkTime,
                 Yatch,YoungAndHappy`.split(',');
                 // create an 'undraw-icon' item for every undraw icon 
+                const path = require('path');
+                const sourceAssets = path.join(__dirname,'assets','autocomplete');
                 for (let icon of icons) {
                     icon = icon.replaceAll('\n','').trim();
+                    let iconPath = path.join(sourceAssets,'undraw',icon.toLowerCase().trim()+'.png');
+                    let hasImage = (await context.exists(iconPath))?true:false;
                     ac['undraw_icon_'+icon] = {
                         type: 'undraw-icon',
                         icons: [],
                         parents: ['name'],
                         text: `${icon}`,
                         hint: `UnDraw ${icon} svg image`,
+                        childrenTypes: ['none'],
                         attributes: {}
                     };
+                    if (hasImage) {
+                        // use hint with image, only if there's an image for this icon on autocomplete folder
+                        ac['undraw_icon_'+icon].hint = `&nbsp;&nbsp;UnDraw ${icon} svg image<br/><br/>&nbsp;&nbsp;<img src="undraw/${icon.toLowerCase().trim()}.png" border="2" width="250"/>`;
+                        //context.debug(`hasImage: ${hasImage} for ${icon}`,iconPath);
+                    }
                 }
                 // create single 'undraw' idea command 
                 ac['UnDraw'] = {
                     type: 'view',
                     icons: ['idea'], // should be by default the x_command icon
                     text: `UnDraw`,
-                    hint: `UnDraw svg image`,
-                    childrenTypes: ['attribute*'],
+                    hint: `&nbsp;&nbsp;UnDraw svg image<br/><br/>&nbsp;&nbsp;<img src="undraw/undraw.png" border="2" width="300"/>`,
+                    level: [3,4,5,6,7,8,9,10,11,12,13,14,15],
+                    childrenTypes: ['attribute*','event'],
+                    events: {
+                        click:{
+                            type: 'function',
+                            hint: 'Triggered when the user clicks on the UnDraw icon',
+                        }
+                    },
                     attributes: {
                         '{icon:list}name':{
                             type:'string',
@@ -849,7 +860,7 @@ module.exports = async function(context) {
                         // normalize 
                         value = value.replaceAll('$variables.', '')
                                     .replaceAll('$vars.', '')
-                                    .replaceAll('$params.', '')
+                                    //.replaceAll('$params.', '')
                                     .replaceAll('$store.', '$store.state.');
                     }
                     if (keytest == 'props') {
@@ -1034,7 +1045,7 @@ module.exports = async function(context) {
                     let vmodel = node.text.trim();
                     vmodel = vmodel.replaceAll('$variables.', '')
                         .replaceAll('$vars.', '')
-                        .replaceAll('$params.', '')
+                        //.replaceAll('$params.', '')
                         .replaceAll('$store', '$store.state.');
                     params['v-model'] = vmodel;
                 } else if (node.text.trim()!='') {
@@ -1174,7 +1185,7 @@ module.exports = async function(context) {
                         let vmodel = node.text.trim();
                         vmodel = vmodel.replaceAll('$variables.', '')
                             .replaceAll('$vars.', '')
-                            .replaceAll('$params.', '')
+                            //.replaceAll('$params.', '')
                             .replaceAll('$store', '$store.state.');
                         params[':prefill'] = vmodel;
                     } else {
@@ -1252,7 +1263,7 @@ module.exports = async function(context) {
                         //vmodel = vmodel.split(',').pop();
                         vmodel = vmodel.replaceAll('$variables.', '')
                             .replaceAll('$vars.', '')
-                            .replaceAll('$params.', '')
+                            //.replaceAll('$params.', '')
                             .replaceAll('$store', '$store.state.');
                     }
                     params['@onselectimage'] = `(item)=>${vmodel}=[item]`;
@@ -1298,7 +1309,7 @@ module.exports = async function(context) {
                         //vmodel = vmodel.split(',').pop();
                         vmodel = vmodel.replaceAll('$variables.', '')
                             .replaceAll('$vars.', '')
-                            .replaceAll('$params.', '')
+                            //.replaceAll('$params.', '')
                             .replaceAll('$store', '$store.state.');
                     }
                     params['v-model'] = vmodel;
@@ -1337,7 +1348,7 @@ module.exports = async function(context) {
                         //vmodel = vmodel.split(',').pop();
                         vmodel = vmodel.replaceAll('$variables.', '')
                             .replaceAll('$vars.', '')
-                            .replaceAll('$params.', '')
+                            //.replaceAll('$params.', '')
                             .replaceAll('$store', '$store.state.');
                     }
                     params['v-model'] = vmodel;
@@ -1530,7 +1541,7 @@ module.exports = async function(context) {
                 }
                 let text = base_text.replaceAll('$variables.', '')
                 .replaceAll('$vars.', '')
-                .replaceAll('$params.', '')
+                //.replaceAll('$params.', '')
                 .replaceAll('$store.', '$store.state.');
                 if (text == '') text = '&nbsp;';
                 // some extra validation
@@ -2340,7 +2351,7 @@ module.exports = async function(context) {
                 if (typeof elements.value === 'string' && elements.value.includes('**') && node.icons.includes('bell')) elements.value = getTranslatedTextVar(elements.value);
                 if (typeof elements.variable === 'string' && (elements.variable.includes('$variables.') || 
                     elements.variable.includes('$vars.') ||
-                    elements.variable.includes('$params.') ||
+                    //elements.variable.includes('$params.') ||
                     elements.variable.includes('$store.') ||
                     elements.variable.includes('$route.'))
                     ) {
@@ -2522,10 +2533,10 @@ module.exports = async function(context) {
                 // prepare expressions
                 let expresion_js = params.expresion. replaceAll('$variables.','this.')
                                                     .replaceAll('$vars.','this.')                                   
-                                                    .replaceAll('$params.','this.');
+                                                    //.replaceAll('$params.','this.');
                 let expresion_view = params.expresion.   replaceAll('$variables.','')
                                                         .replaceAll('$vars.','')
-                                                        .replaceAll('$params.','');
+                                                        //.replaceAll('$params.','');
                 if (state.current_proxy) {
                     expresion_js = expresion_js.replaceAll('$store.','store.state.');
                     expresion_view = expresion_view.replaceAll('$store.','store.state.');
@@ -2770,7 +2781,7 @@ module.exports = async function(context) {
                     } else if ('valor,value,:valor,:value'.split(',').includes(keytest)) {
                         let t_value = value.replaceAll('$variables', 'this.')
                             .replaceAll('$vars.', 'this.')
-                            .replaceAll('$params.', 'this.')
+                            //.replaceAll('$params.', 'this.')
                             .replaceAll('$store.', 'this.$store.state.');
                         if (t_value.toLowerCase().trim() == '{now}') t_value = 'new Date()';
                         if (t_value.includes('assets:')) {
@@ -3298,8 +3309,7 @@ ${tmp.template}
                     let watched = params.watch.split(',');
                     code += `//hack triggering update using watched vars\n`;
                     for (let value_ of watched) {
-                        value_r = value_.replaceAll('$params.', 'this.')
-                                        .replaceAll('$variables.', 'this.')
+                        value_r = value_.replaceAll('$variables.', 'this.')
                                         .replaceAll('$config.', 'this.$config.')
                                         .replaceAll('$store.', 'this.$store.state.');
                         code += `if (${value_r}) { let _x_=${value_r}; }\n`;
@@ -3361,8 +3371,7 @@ ${tmp.template}
                 });
                 // tests return types
                 if (text.includes('$')) {
-                    text = text.replaceAll('$params.', 'this.')
-                               .replaceAll('$variables.', 'this.');
+                    text = text.replaceAll('$variables.', 'this.');
                 }
                 if (text.includes('**') && node.icons.includes('bell')) {
                     let new_vars = getTranslatedTextVar(text);
@@ -3405,8 +3414,7 @@ ${tmp.template}
                 tmp.var = node.text.split(',').pop().trim(); //last comma element                
                 tmp.var = tmp.var.replaceAll('$variables.', '')
                     .replaceAll('$store.', 'this.$store.state.')
-                    .replaceAll('$config.', 'this.$config.')
-                    .replaceAll('$params.', '');
+                    .replaceAll('$config.', 'this.$config.');
                 tmp.var = (tmp.var == 'this.') ? 'this' : tmp.var;
                 // process attributes
                 let attrs = {...node.attributes
@@ -3433,7 +3441,6 @@ ${tmp.template}
                         // normalize vue type vars
                         value = value.replaceAll('$variables.', '')
                             .replaceAll('$vars.', '')
-                            .replaceAll('$params.', '')
                             .replaceAll('$store.', 'this.$store.state.');
                     }
                     attrs[key] = value; //.replaceAll('{now}','new Date()');
@@ -3541,10 +3548,10 @@ ${tmp.template}
                 // clean given varname $variables, etc.
                 if ((await context.hasParentID(node.id, 'def_event_server'))==true) { //@todo change after checking (revision) concepto inherited states; if (resp.state.from_server) {
                     tmp.var = tmp.var.replaceAll('$variables.', 'resp.')
-                                     .replaceAll('$vars.', 'resp.').replaceAll('$params.', 'resp.');
+                                     .replaceAll('$vars.', 'resp.');
                     tmp.var = (tmp.var == 'resp.') ? 'resp' : tmp.var;
                 } else {
-                    tmp.var = tmp.var.replaceAll('$variables.', 'this.').replaceAll('$params.', 'this.').replaceAll('$store.', 'this.$store.state.').replaceAll('$config.', 'this.$config.');
+                    tmp.var = tmp.var.replaceAll('$variables.', 'this.').replaceAll('$store.', 'this.$store.state.').replaceAll('$config.', 'this.$config.');
                     tmp.var = (tmp.var == 'this.') ? 'this' : tmp.var;
                 }
                 // extend given var with 'extend_node' content
@@ -3595,8 +3602,8 @@ ${tmp.template}
                                         .replaceAll(';;',';');
                 } else if (node.text.includes('$params.') && node.text.right(2)=='()') {
                     //@TODO check this, doesn't look right
-                    tmp.text = tmp.text .replaceAll('$params.','this.$asyncComputed.')
-                                        .replaceAll('()','.update();')
+                    tmp.text = tmp.text .replaceAll('()','.update();')
+                                        //.replaceAll('$params.','this.$asyncComputed.')
                                         .replaceAll(';;',';');
                 } else if (node.text.includes('$store.') && node.text.includes('this.$store.state')==false) {
                     tmp.text = tmp.text .replaceAll('$store.','this.$store.state.')
@@ -3608,8 +3615,7 @@ ${tmp.template}
                     tmp.text = tmp.text.replaceAll(`'assets:${elements.name}'`,value_);
                 } else {
                     tmp.text = tmp.text .replaceAll('$variables.','this.')
-                                        .replaceAll('$vars.','this.')
-                                        .replaceAll('$params.','this.');
+                                        .replaceAll('$vars.','this.');
                 }
                 //scrollTo plugin?
                 if (tmp.text.includes('this.$scrollTo')) {
@@ -3670,7 +3676,6 @@ ${tmp.template}
                         // normalize vue type vars                        
                         value = value.replaceAll('$variables.', 'this.')
                             .replaceAll('$vars.', 'this.')
-                            .replaceAll('$params.', 'this.')
                             .replaceAll('$store.', 'this.$store.state.');
                     }
                     //bell
@@ -4221,7 +4226,6 @@ ${tmp.template}
                 }
                 params.iterator = params.iterator   .replaceAll('$variables.','this.')
                                                     .replaceAll('$vars.','this.')
-                                                    .replaceAll('$params.','this.')
                                                     .replaceAll('$store.','this.$store.state.');
                 context.x_state.pages[state.current_page].imports['_'] = 'underscore';
                 //search consultar web nodes
@@ -4344,19 +4348,15 @@ ${tmp.template}
                 });
                 if (state.from_server) {
                     tmp.var = tmp.var.replaceAll('$variables.','resp.')
-                                     .replaceAll('$vars.','resp.')
-                                     .replaceAll('$params.','resp.');
+                                     .replaceAll('$vars.','resp.');
                     tmp.original = tmp.original.replaceAll('$variables.','resp.')
-                                     .replaceAll('$vars.','resp.')
-                                     .replaceAll('$params.','resp.');
+                                     .replaceAll('$vars.','resp.');
                 } else if (tmp.var!='') {
                     tmp.var = tmp.var.replaceAll('$variables.','this.')
                                      .replaceAll('$vars.','this.')
-                                     .replaceAll('$params.','this.')
                                      .replaceAll('$store.','this.$store.state.');pon
                     tmp.original = tmp.original.replaceAll('$variables.','this.')
                                                .replaceAll('$vars.','this.')
-                                               .replaceAll('$params.','this.')
                                                .replaceAll('$store.','this.$store.state.');
                 }
                 if (tmp.original.includes('**') && node.icons.includes('bell')) {
@@ -4497,12 +4497,10 @@ ${tmp.template}
                 if (tmp.var.includes('$')) {
                     if (state.from_server) {
                         tmp.var = tmp.var.replaceAll('$variables.', 'resp.')
-                                        .replaceAll('$vars.', 'resp.')
-                                        .replaceAll('$params.', 'resp.');
+                                        .replaceAll('$vars.', 'resp.');
                     } else {
                         tmp.var = tmp.var.replaceAll('$variables.', 'this.')
                                         .replaceAll('$vars.', 'this.')
-                                        .replaceAll('$params.', 'this.')
                                         .replaceAll('$store.', 'this.$store.state.');
                         if (tmp.var=='this.') tmp.var='this';
                     }
@@ -4518,12 +4516,10 @@ ${tmp.template}
                 } else if (tmp.original.includes('$')) {
                     if (state.from_server) {
                         tmp.original = tmp.original.replaceAll('$variables.', 'resp.')
-                                                    .replaceAll('$vars.', 'resp.')
-                                                    .replaceAll('$params.', 'resp.');
+                                                    .replaceAll('$vars.', 'resp.');
                     } else {
                         tmp.original = tmp.original.replaceAll('$variables.', 'this.')
                                                     .replaceAll('$vars.', 'this.')
-                                                    .replaceAll('$params.', 'this.')
                                                     .replaceAll('$store.', 'this.$store.state.');
                         if (tmp.original=='this.') tmp.original='this';
                     }
@@ -4754,7 +4750,6 @@ ${tmp.template}
                 } else if (event.includes('$')) {
                     event = event.replaceAll('$variables.', 'this.')
                                  .replaceAll('$vars.', 'this.')
-                                 .replaceAll('$params.', 'this.')
                                  .replaceAll('$store.', 'this.$store.state.');
                     event = `'${event}'`;
                 } else if (event.charAt(0) == '(' && event.slice(-1) == ')') {
