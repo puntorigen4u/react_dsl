@@ -2094,6 +2094,7 @@ ${cur.attr('name')}: {
                 }
             }
         }
+        //this.debug('pages!',pages);
         appJSX = appJSX.replace('{appJSX.import_pages}', import_pages);
         //
         let JSX_imports = await this.x_theme.AppImports();
@@ -2143,7 +2144,7 @@ ${cur.attr('name')}: {
         const babel_ = await this.x_theme.BabelRC(default_babel);
         this.writeFile(g('@app/.babelrc'),JSON.stringify(babel_));
         // create webpack.config.js
-        let webpack = {};
+        let webpack = { exposes:{} };
         webpack.template = `
         const HtmlWebPackPlugin = require("html-webpack-plugin");
         const ModuleFederationPlugin = require("webpack/lib/container/ModuleFederationPlugin");
@@ -2204,10 +2205,7 @@ ${cur.attr('name')}: {
               remotes: {
               },
               //@todo add components marked as 'shared'
-              exposes: {
-                './App': './src/App',
-                './Home': './src/pages/Home',
-              },
+              exposes: {webpack:exposes},
               shared: {
                 ...deps,
                 react: {
@@ -2250,6 +2248,24 @@ ${cur.attr('name')}: {
         // create webpack.config.js
         // replace placeholders with values
         webpack.template = webpack.template.replace('{webpack:html}',this.jsDump(webpack.HtmlWebPackPlugin));
+        // test if central node is 'shared'
+        if (this.x_state.central_config.shared) {
+            webpack.exposes['./App'] = './src/App.jsx'
+        }
+        // test which pages/components are shared
+        for (let thefile_num in processedNodes)  {
+            let thefile = processedNodes[thefile_num];
+            let page = this.x_state.pages[thefile.title];
+            if (page) {
+                const name = thefile.file.split('.')[0];
+                if (page.type=='page' && page.shared) {
+                    webpack.exposes['./'+name] = './src/pages/'+name;
+                } else if (page.type=='component' && page.shared) {
+                    webpack.exposes['./'+name] = './src/components/'+name;
+                }
+            }
+        }
+        webpack.template = webpack.template.replace('{webpack:exposes}',JSON.stringify(webpack.exposes));
         // write file
         this.writeFile(g('@app/webpack.config.js'),webpack.template);
         
@@ -3645,6 +3661,7 @@ export const decorators = [
             models: 'aurora',
             component: false,
             storybook: false,
+            shared: false,
             'keep-alive': true,
             'keep-warm': true,
             ':cache': this.x_config.cache,
@@ -3682,66 +3699,8 @@ export const decorators = [
             resp.service_name = resp.apptitle;
         }
         if (!resp[':cache']) this.x_config.cache = false; // disables cache when processing nodes (@todo)
-        //@temp 23nov22
-        /*
-        if (resp['ui'] == 'mui') {
-            // add autocomplete definitions for all MUI components
-            // just a demo for now
-            await this.addAutocompleteDefinition({   
-                text:'AppBar',
-                icons:['idea'],
-                level:[3,4],
-                hint:'Top navigation bar',
-                attributes:{
-                    'color': { values:'primary,secondary', hint:'Defines the color of the AppBar' },
-                } 
-            });
-        }*/
-        // assign defaults for UI libraries as global state
-        /*
-        let uiDefaultState = {
-            'textTag': 'div',
-            'viewNPM': '',
-            bold: { //gets merged on textTags
-                class: 'font-weight-bold'
-            },
-            italic: {
-                class: 'font-italic'
-            },
-            small: {
-                class: 'caption'
-            },
-            span: {
-                tag_: 'span'
-            }
-        };
-        if (resp['ui'] == 'mui') {
-            this.x_state.ui = { ...this.x_state.ui, ...uiDefaultState, ...{ 
-                'textTag': 'Typography',
-                'viewNPM': '@mui/material',
-                bold: {
-                    sx: {
-                        fontWeight:'bold'
-                    }
-                },
-                italic: {
-                    sx: {
-                        fontStyle:'italic'
-                    }
-                },
-                small: {
-                    variant: 'caption'
-                },
-                span: {
-                    component:'span'
-                },
-            } };
-        } else if (resp['ui'] == 'joi') {
-            this.x_state.ui = { ...this.x_state.ui, ...uiDefaultState, ...{
-                'textTag': 'Text',
-                'viewNPM': '@joi/components'
-            } };
-        }*/
+        // test if whole project is 'shared' (has a star on the central node)
+        if (central[0].icons.includes('bookmark')==true) resp.shared = true;
         // return
         return resp;
     }
