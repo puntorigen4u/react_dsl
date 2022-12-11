@@ -14,6 +14,7 @@ import deploy_eb from './deploys/eb'
 import deploy_s3 from './deploys/s3'
 import deploy_ghpages from './deploys/ghpages'
 import * as Theme from './ui'
+import { stringify } from '@stitches/stringify';
 
 const deepMerge = require('deepmerge');
 
@@ -193,6 +194,7 @@ export default class react_dsl extends concepto {
             current_proxy: '',
             strings_i18n: {},
             stores: {},
+            assets: {},
             stores_types: { versions: {}, expires: {} },
             nuxt_config: { head_script: {}, build_modules: {}, modules: {} },
         }};
@@ -227,6 +229,7 @@ export default class react_dsl extends concepto {
             'src': 'src',
             'components': 'src/components',
             'pages': 'src/pages',
+            'assets': 'src/assets',
             'styles': 'src/styles',
             'theme': 'src/styles/theme',
             'utility': 'src/utility',
@@ -1688,7 +1691,7 @@ ${cur.attr('name')}: {
             let sheet = jss.createStyleSheet({
                 '@global': page.styles
             });
-            if (!react.style) vue.style = '';
+            if (!react.style) react.style = '';
             react.style += `<style>\n${sheet.toString()}</style>`;
             //this.debug('JSS sheet',sheet.toString());
         }
@@ -1972,7 +1975,9 @@ ${cur.attr('name')}: {
         //create styles/globals.css
         //@todo grab values from main node 'styles'
         const globalsCSS = await this.x_theme.globalCSS();
-        this.writeFile(g('@styles/globals.css'), globalsCSS);
+        const globalStyle = await this._readStyle();
+        //merge with values from main->styles into a single object and stringify to CSS
+        this.writeFile(g('@styles/globals.css'), stringify(deepMerge(globalsCSS,globalStyle)));
         //create public/index.html
         //@todo add website title, modify lang, add meta data and any additional head requirements
         //add conifg:meta data
@@ -2089,7 +2094,7 @@ ${cur.attr('name')}: {
             if (page) {
                 const name = thefile.file.split('.')[0];
                 if (page.type=='page') {
-                    pages.push({ name, params:page.params, defaults:page.defaults, path:page.path });
+                    pages.push({ name, params:page.params, defaults:page.defaults, path:page.path, styles:page.styles });
                     import_pages += `import { ${name} } from "./pages";\n`;
                 }
             }
@@ -3310,6 +3315,23 @@ export const decorators = [
                     });
                 }
                 react.script = react.script.replaceAll('{concepto:params}',pageParams); //@todo
+                // create page styles if any
+                if (Object.keys(page.styles).length>0) {
+                    // create file @styles/{thefile.file.replaceAll('.js','.type.css')}
+                    let page_css = stringify(page.styles);
+                    let page_import = thefile.file.replaceAll('.js',`.module.css`);
+                    let page_css_file = '';
+                    if (page.type=='page') {
+                        page_css_file = this.g(`@pages/${page_import}`);
+                        script_imports += `import $styles from './${page_import}';\n`;
+                    } else {
+                        page_css_file = this.g(`@components/${page_import}`);
+                        script_imports += `import $styles from './${page_import}';\n`;
+                    }
+                    await this.writeFile(page_css_file,page_css);
+                    // add to script_imports
+                    //this.debug('CSS the file',thefile.file);
+                }
                 // add imports
                 react.script = react.script.replaceAll('{concepto:import}',script_imports);
                 // **** **** end script wrap **** **** 
@@ -3401,25 +3423,7 @@ export const decorators = [
             let contenido = await worker.text();
             await fs.writeFile(static_path, contenido, 'utf-8');
         }*/
-        // copy assets
-        if (Object.keys(this.x_state.assets).length>0) {
-            this.debug({ message: `Copying assets`, color:'cyan'});
-            let copy = require('recursive-copy');
-            for (let i in this.x_state.assets) {
-                //@TODO add support for i18n assets
-                let asset = this.x_state.assets[i];
-                if (!asset.i18n) {
-                    let source = path.join(this.x_state.dirs.base, asset.original);
-                    let target = path.join(this.x_state.dirs.assets,asset.original.split('/').slice(-1)[0]);
-                    //this.debug({ message: `Copying asset`, data:{source,target}, color:'cyan'});
-                    try { await copy(source, target); } catch(e) {}
-                }
-                await this.setImmediatePromise(); //@improved
-            }
-            this.debug({ message:`Copying assets ready`, color:'cyan'});
-        }
         // create React template structure
-
         //-await this.createVueXStores();
         //-await this.createServerMethods();
         //-await this.createMiddlewares();
@@ -3441,7 +3445,26 @@ export const decorators = [
         await this.createVSCodeHelpers();
         //create serverless.yml for deploy:sls - cfc:12881
         //-await this.createServerlessYML();
-        //execute deploy (npm install, etc) - moved to onEnd
+        // execute deploy (npm install, etc) - moved to onEnd
+        // copy assets
+        //this.debug('DEBUG assets',this.x_state.assets);
+         if (Object.keys(this.x_state.assets).length>0) {
+             this.debug({ message: `Copying assets`, color:'cyan'});
+             let copy = require('recursive-copy');
+             for (let i in this.x_state.assets) {
+                 //@TODO add support for i18n assets
+                 let asset = this.x_state.assets[i];
+                 if (!asset.i18n) {
+                     let source = path.join(this.x_state.dirs.base, asset.original);
+                     let target = path.join(this.x_state.dirs.assets,asset.original.split('/').slice(-1)[0]);
+                     //this.debug({ message: `Copying asset`, data:{source,target}, color:'cyan'});
+                     try { await copy(source, target, { overwrite:true }); } catch(e) {}
+                 }
+                 await this.setImmediatePromise(); //@improved
+             }
+             this.debug({ message:`Copying assets ready`, color:'cyan'});
+         }
+         //
         
     }
 
@@ -3566,6 +3589,49 @@ export const decorators = [
             }
         } 
         this.debug_timeEnd({ id: '_readTheme' });
+        return resp;
+    }
+
+    /*
+     * Reads main style node, and returns object with info
+     */
+    async _readStyle() {
+        let resp = {},
+            path = require('path');
+        this.debug('_readStyle');
+        this.debug_time({ id: '_readStyle' });
+        
+        let style = await this.dsl_parser.getNodes({ text: 'styles', level: 2, icon: 'desktop_new', recurse: true }); //nodes_raw:true
+        if (style.length > 0) {
+            style = style[0];
+            for (let child of style.nodes) {
+                if (child.link!='') {
+                    // if it's a link, test if it's a font -> extensions: .ttf, .otf, .woff, .woff2
+                    let ext = path.extname(child.link);
+                    if (['.ttf', '.otf', '.woff', '.woff2'].indexOf(ext) > -1) {
+                        // it's a font; add style to resp object
+                        if (!resp['@font-face']) resp['@font-face'] = [];
+                        // get file from path
+                        let file = path.basename(child.link);
+                        resp['@font-face'].push({
+                            fontFamily: child.text,
+                            src: `url('../assets/${file}')`
+                        });
+                        // add to this.x_state.assets object (original) to be copied to dist
+                        this.x_state.assets[child.link] = {
+                            original: child.link, // needs to be relative
+                        };
+                    }
+                }
+                /*
+                if (child.bgcolor!='') {
+                    // assume it's a color
+                    // & merge with child attributes (ex. dark:another_color )
+                    resp.palette[child.text] = deepMerge({ main:child.bgcolor.toUpperCase() },child.attributes);
+                }*/
+            }
+        } 
+        this.debug_timeEnd({ id: '_readStyle' });
         return resp;
     }
 
@@ -3904,12 +3970,19 @@ export const decorators = [
                 //little hack that works together with writeFile method
                 resp.push(`${key}="xpropx"`); 
             } else if (typeof value !== 'object' && typeof value !== 'function' && typeof value !== 'undefined') {
+                this.debug('typeof value',typeof value);
                 if (key[0] == ':') {
-                     //serialize value
-                     this.debug('struct2params',{key,value});
+                    //serialize value
+                    //this.debug('struct2params',{key,value});
                     let encrypt = require('encrypt-with-password');
                     const val = encrypt.encryptJSON(value,'123');
                     resp.push(`${key.replaceAll(':','')}_encrypt="${val}"`);
+                } else if (typeof value === 'string' && (value.indexOf('$params.')!=-1 || value.indexOf('$styles.')!=-1 || value.indexOf('$variables.')!=-1)) {
+                    //serialize value
+                    //this.debug('struct2params',{key,value});
+                    let encrypt = require('encrypt-with-password');
+                    const val = encrypt.encryptJSON(value,'123');
+                    resp.push(`${key}_encrypt="${val}"`);
                 } else {
                     resp.push(`${key}="${value}"`);
                 }

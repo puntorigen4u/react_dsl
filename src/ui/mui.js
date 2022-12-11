@@ -107,6 +107,7 @@ export class mui extends base_ui {
 
     async globalCSS() {
         // whatever is returned is added to globals.css
+        /*
         return `body {
             font-family: Arial, Helvetica, sans-serif;
           }
@@ -117,7 +118,19 @@ export class mui extends base_ui {
             max-width: 800px;
             margin-top: 20px;
           }
-        `;
+        `;*/
+        // we now use @stitches/stringify
+        return {
+            body: {
+                fontFamily: 'Arial, Helvetica, sans-serif',
+            },
+            '.container': {
+                fontSize: '3rem',
+                margin: 'auto',
+                maxWidth: '800px',
+                marginTop: '20px',
+            }
+        }
     }
     
     async indexHtmlHead() {
