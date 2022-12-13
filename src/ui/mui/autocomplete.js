@@ -245,7 +245,8 @@ export const autocomplete = async(parent) =>{
     types.base = {
         type: 'view',
         icons: ['idea'],
-        level: types.all_levels
+        level: types.all_levels,
+        attributes: {}
     }
     components['-private-systemProperties'] = {...types.base, ...{ //hidden AC if contains -private- keyword
         type: 'system',
@@ -257,7 +258,7 @@ export const autocomplete = async(parent) =>{
     components.sx = {
         type: 'attribute',
         icons: ['list'],
-        parents: ['Box'],
+        parents: ['Box','Container'],
         level: [],
         childrenTypes: ['attribute'],
         hint: 'The sx prop is a shortcut for defining custom styles that has access to the theme.',
@@ -321,7 +322,7 @@ export const autocomplete = async(parent) =>{
                     type: 'object',
                     hint: 'The sx prop is a shortcut for defining custom styles that has access to the theme.',
                 },
-                component: {
+                '{icon:list}component': {
                     type: 'string',
                     default: 'div',
                     hint: 'The component used for the root node. Either a string to use a HTML element or a component.'
@@ -333,7 +334,264 @@ export const autocomplete = async(parent) =>{
             }
         }
     );
+    components.Container = parent.extend(types.base,
+        {
+            type: 'view-layout',
+            hint: `The Container component centers your content horizontally. It's the most basic layout element.`,
+            attributes: {
+                '{icon:list}sx': {
+                    type: 'object',
+                    hint: 'The sx prop is a shortcut for defining custom styles that has access to the theme.',
+                },
+                '{icon:list}classes': {
+                    type: 'object',
+                    hint: 'Override or extend the styles applied to the component.',
+                },
+                '{icon:list}component': {
+                    type: 'string',
+                    default: 'div',
+                    hint: 'The component used for the root node. Either a string to use a HTML element or a component.'
+                },
+                '{icon:list}maxWidth': {
+                    type: 'xs,sm,md,lg,xl,false,number',
+                    default: '',
+                    hint: 'The max-width of the container. Set to false to disable maxWidth'
+                },
+                '{icon:list}disableGutters': {
+                    type: 'boolean',
+                    default: 'false',
+                    hint: 'If true, the left and right padding is removed.'
+                },
+                '{icon:list}fixed': {
+                    type: 'boolean',
+                    default: 'false',
+                    hint: `Set the max-width to match the min-width of the current breakpoint. This is useful if you'd prefer to design for a fixed set of sizes instead of trying to accommodate a fully fluid viewport. It's fluid by default.`
+                },
 
+            }
+        }
+    );
+    components.Grid = parent.extend(types.base,
+        {
+            text: 'Grid',
+            type: 'view-layout',
+            hint: `The Material Design responsive layout grid adapts to screen size and orientation, ensuring consistency across layouts.`,
+            childrenTypes: ['grid-item','script*','attribute*'],
+            attributes: {
+                '{icon:list}sx': {
+                    type: 'object',
+                    hint: 'The sx prop is a shortcut for defining custom styles that has access to the theme.',
+                },
+                '{icon:list}classes': {
+                    type: 'object',
+                    hint: 'Override or extend the styles applied to the component.',
+                },
+                '{icon:list}component': {
+                    type: 'string',
+                    default: 'div',
+                    hint: 'The component used for the root node. Either a string to use a HTML element or a component.'
+                },
+                '{icon:list}columns': {
+                    type: 'number',
+                    default: '12',
+                    hint: `The number of columns.`
+                },
+                '{icon:list}ColumnSpacing': {
+                    type: 'number,object,array',
+                    default: '',
+                    hint: `Defines the horizontal space between the type item components.`
+                },
+                '{icon:list}container': {
+                    type: 'boolean',
+                    default: 'false',
+                    hint: `If true, the component will have the flex container behavior. You should be wrapping items with a container.`
+                },
+                '{icon:list}item': {
+                    type: 'boolean',
+                    default: 'false',
+                    hint: `If true, this grid is an item of the 'container'.`
+                },
+                '{icon:list}direction': {
+                    type: 'row,row-reverse,column,column-reverse',
+                    default: 'row',
+                    hint: `Defines the flex-direction style property. It is applied for all screen sizes.`
+                }
+            }
+        }
+    );
+    components.GridItem = parent.extend(components.Grid,
+        {
+            type: 'grid-item',
+            text: 'Grid',
+            parents: ['Grid'],
+            childrenTypes: ['view','script*','attribute*'],
+            hint: 'Grid item. Ensure to set attribute item=true.',
+        }
+    );
+    components.Stack = parent.extend(types.base,
+        {
+            type: 'view-layout',
+            hint: `The Stack component manages layout of immediate children along the vertical or horizontal axis with optional spacing and/or dividers between each child.`,
+            attributes: {
+                '{icon:list}sx': {
+                    type: 'object',
+                    hint: 'The sx prop is a shortcut for defining custom styles that has access to the theme.',
+                },
+                '{icon:list}component': {
+                    type: 'string',
+                    default: 'div',
+                    hint: 'The component used for the root node. Either a string to use a HTML element or a component.'
+                },
+                '{icon:list}direction': {
+                    type: 'row,row-reverse,column,column-reverse',
+                    default: 'column', // vertical
+                    hint: `Defines the flex-direction style property. It is applied for all screen sizes.`
+                },
+                '{icon:list}{icon:view}divider': {
+                    type: 'view',
+                    default: '',
+                    hint: `Adds an element between each child.`
+                },
+                '{icon:list}spacing': {
+                    type: 'number',
+                    default: '0',
+                    hint: `Defines the space between immediate children.`
+                },
+            }
+        }
+    );
+    components.ImageList = parent.extend(types.base,
+        {
+            type: 'view-layout',
+            hint: `The Image List displays a collection of images in an organized grid.`,
+            childrenTypes: ['imagelist-item','script*','attribute*'],
+            attributes: {
+                '{icon:list}classes': {
+                    type: 'object',
+                    hint: 'Override or extend the styles applied to the component.',
+                },
+                '{icon:list}sx': {
+                    type: 'object',
+                    hint: 'The sx prop is a shortcut for defining custom styles that has access to the theme.',
+                },
+                '{icon:list}component': {
+                    type: 'string',
+                    default: 'div',
+                    hint: 'The component used for the root node. Either a string to use a HTML element or a component.'
+                },
+                '{icon:list}cols': {
+                    type: 'number',
+                    default: '2',
+                    hint: `The number of columns.`
+                },
+                '{icon:list}gap': {
+                    type: 'number',
+                    default: '4',
+                    hint: `The gap between items in px.`
+                },
+                '{icon:list}rowHeight': {
+                    type: 'number',
+                    default: '180',
+                    hint: `The height of one row in px.`
+                },
+                '{icon:list}variant': {
+                    type: 'masonry,quilted,standard,woven',
+                    childrenTypes: ['imagelist-variant'],
+                    default: 'standard',
+                    hint: `The variant to use.`
+                }
+            }
+        }
+    );
+    // add ImageList 'variant' attribute alternatives
+    // @todo add this logic automatically within generateAutoComplete() of concepto class (iterate types of attributes and set childrenTypes as generated children types)
+    /*for (let variant of ['masonry','quilted','standard','woven']) {
+        components['ImageListVariant'+variant] = parent.extend(types.base,
+            {
+                type: 'imagelist-variant',
+                text: variant,
+                parents: ['variant'],
+                hint: 'Variant of ImageList layout.',
+            }
+        );
+        components['ImageListVariant'+variant].icons = [];
+    }*/
+
+    components.ImageListItem = parent.extend(types.base,
+        {
+            type: 'imagelist-item',
+            text: 'ImageListItem',
+            parents: ['ImageList'],
+            childrenTypes: ['imagelist-itembar','script*','attribute*','event'],
+            hint: `Corresponds to an item of ImageList layout.`,
+            attributes: {
+                '{icon:list}classes': {
+                    type: 'object',
+                    hint: 'Override or extend the styles applied to the component.',
+                },
+                '{icon:list}sx': {
+                    type: 'object',
+                    hint: 'The sx prop is a shortcut for defining custom styles that has access to the theme.',
+                },
+                '{icon:list}component': {
+                    type: 'string',
+                    default: 'div',
+                    hint: 'The component used for the root node. Either a string to use a HTML element or a component.'
+                },
+                '{icon:list}cols': {
+                    type: 'number',
+                    default: '2',
+                    hint: `The number of columns.`
+                },
+                '{icon:list}rows': {
+                    type: 'number',
+                    default: '1',
+                    hint: `The number of rows.`
+                },
+            }
+        }
+    );
+    components.ImageListItemBar = parent.extend(types.base,
+        {
+            type: 'imagelist-itembar',
+            text: 'ImageListItemBar',
+            parents: ['ImageListItem'],
+            childrenTypes: ['view','script*','attribute*','event'],
+            hint: `Corresponds to a title bar shown within an ImageListItem.`,
+            attributes: {
+                '{icon:list}classes': {
+                    type: 'object',
+                    hint: 'Override or extend the styles applied to the component.',
+                },
+                '{icon:list}sx': {
+                    type: 'object',
+                    hint: 'The sx prop is a shortcut for defining custom styles that has access to the theme.',
+                },
+                '{icon:list}{icon:idea}title': {
+                    type: 'view',
+                    hint: 'Title to be displayed.',
+                },
+                '{icon:list}{icon:idea}subtitle': {
+                    type: 'view',
+                    hint: 'String or element serving as subtitle (support text).',
+                },
+                '{icon:list}position': {
+                    type: 'below,bottom,top',
+                    default: 'bottom',
+                    hint: 'Position of the title bar.',
+                },
+                '{icon:list}{icon:idea}actionIcon': {
+                    type: 'view,icon',
+                    hint: 'An IconButton element to be used as secondary action target (primary action target is the item itself).',
+                },
+                '{icon:list}actionPosition': {
+                    type: 'left,right',
+                    default: 'right',
+                    hint: 'Position of secondary action IconButton.',
+                },
+            }
+        }
+    );
     // ****************************
     // ICON: dynamic import from @mui/icons-material
     // also adds the x_command 'icon:Outlined:name' support
@@ -393,7 +651,11 @@ export const autocomplete = async(parent) =>{
                     let attrs = { refx:node.id };
                     if (resp.state.current_page && resp.state.current_page in parent.context.x_state.pages) {
                         // add import to page (if its a page)
-                        parent.context.x_state.pages[resp.state.current_page].imports[icon] = parent.context.x_state.ui.iconNPM;   
+                        if (parent.context.x_state.ui.viewNPMSingle==true) {
+                            parent.context.x_state.pages[resp.state.current_page].imports[icon] = parent.context.x_state.ui.iconNPM+'/'+icon;  
+                        } else {
+                            parent.context.x_state.pages[resp.state.current_page].imports[icon] = parent.context.x_state.ui.iconNPM;   
+                        }
                     }
                     Object.keys(node.attributes).forEach(attr=>{
                         attrs[attr] = node.attributes[attr];

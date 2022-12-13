@@ -43,6 +43,7 @@ export class chakra extends base_ui {
             'textTag': 'Text',
             'viewNPM': '@chakra-ui/react',
             'iconNPM': '@chakra-ui/icons',
+            viewNPMSingle: false,
             textSimpleIfParentView: [],
             bold: {
                 fontWeight: 'bold'

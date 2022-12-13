@@ -860,12 +860,39 @@ module.exports = async function(context) {
                             hint:'Defines the height for the svg; can also be a percentage'
                         },
                         '{icon:list}primaryColor':{
-                            type:'string',
+                            type: [ //@todo grab this dynamically from 'themes' main node
+                                'primary','secondary','tertriary',
+                                'success', 'error', 'info', 'warning'
+                            ].join(','),
                             default:'#6c68fb',
                             hint:'Defines the primary color for the svg'
                         }
                     }
                 };
+                // add ac option for html tag
+                ac['html-node'] = {
+                    type: 'view-html',
+                    parents: [],
+                    icons: ['idea'], // should be by default the x_command icon
+                    text: `*`,
+                    hint: `Use any lowercase text as an html tag.<br/>All text children will be plain.`,
+                    level: [3,4,5,6,7,8,9,10,11,12,13,14,15],
+                    childrenTypes: ['attribute*','event','view*'],
+                    events: {},
+                    attributes: {
+                        '{icon:list}class':{
+                            type:'string',
+                            default:'',
+                            hint:'Defines the class for the html tag'
+                        },
+                        '{icon:list}style':{
+                            type:'string',
+                            default:'',
+                            hint:'Defines the style for the html tag'
+                        }
+                    }
+                }
+                //
                 return ac;
             })(),
             func: async function(node, state) {
@@ -883,6 +910,10 @@ module.exports = async function(context) {
                     extra_imports: []
                 };
                 let npms = {};
+                let isHtml = false;
+                if (node.text.trim()[0].toLowerCase() == node.text.trim()[0]) {
+                    isHtml = true;
+                }
                 //special case if node contains/is 'UnDraw' icon
                 if (node.text.indexOf('UnDraw') != -1) {
                     let image = node.text.trim();
@@ -1017,7 +1048,7 @@ module.exports = async function(context) {
                                                                                             .replaceAll('.','_')
                                                                                             .toLowerCase().trim();
                 if (Object.keys(attrs.config)=='') delete context.x_state.plugins[f_npm].config;
-                if (resp.state.current_page && resp.state.current_page in context.x_state.pages && node.text.indexOf('UnDraw')==-1) {
+                if (resp.state.current_page && resp.state.current_page in context.x_state.pages && node.text.indexOf('UnDraw')==-1 && !isHtml) {
                         let assign_ = tmp.tag.trim();
                         //@idea maybe we could check if assign_ exists on given imports package
                         /*let assign_ = tmp.tag   .replaceAll('-','')
@@ -1028,7 +1059,12 @@ module.exports = async function(context) {
                                                 .trim();*/
                         if (!f_npm && context.x_state.ui.viewNPM != '') {
                             //@todo: replace hardcoded mui with value from central config
-                            context.x_state.pages[resp.state.current_page].imports[assign_] = context.x_state.ui.viewNPM;
+                            //
+                            if (context.x_state.ui.viewNPMSingle==true) { // this improves bundle size
+                                context.x_state.pages[resp.state.current_page].imports[assign_] = context.x_state.ui.viewNPM+'/'+assign_;
+                            } else {
+                                context.x_state.pages[resp.state.current_page].imports[assign_] = context.x_state.ui.viewNPM;
+                            }
                         } else {
                             context.x_state.pages[resp.state.current_page].imports[assign_] = f_npm;
                         }
@@ -1050,7 +1086,9 @@ module.exports = async function(context) {
                 resp.state.text_simple = false;
                 if (context.x_state.ui.textSimpleIfParentView.includes(node.text)) {
                     //context.debug('SETTING TEXT_SIMPLE BEFORE PARENT FRAMEWORK SAYS SO',{ ui:context.x_state.ui.textSimpleIfParentView, node:node.text });
-                    resp.state.text_simple = true;                    
+                    resp.state.text_simple = true;             
+                } else if (isHtml) {
+                    resp.state.text_simple = true;
                 }
                 return resp;
                 // write tag
@@ -1806,7 +1844,11 @@ module.exports = async function(context) {
                                     params = deepMerge(params,context.x_state.ui.span);
                                 }
                                 if (context.x_state.ui.viewNPM!='') {
-                                    context.x_state.pages[resp.state.current_page].imports[context.x_state.ui.textTag] = context.x_state.ui.viewNPM;
+                                    if (context.x_state.ui.viewNPMSingle==true) {
+                                        context.x_state.pages[resp.state.current_page].imports[context.x_state.ui.textTag] = context.x_state.ui.viewNPM+'/'+context.x_state.ui.textTag;
+                                    } else {
+                                        context.x_state.pages[resp.state.current_page].imports[context.x_state.ui.textTag] = context.x_state.ui.viewNPM;
+                                    }
                                 }
                                 if (resp.state.text_simple==false) {
                                     resp.open += context.tagParams(tag_, params) + text + '</'+tag_+'>\n';
@@ -1821,7 +1863,11 @@ module.exports = async function(context) {
                                 if (resp.state['text_simple'] && resp.state.text_simple==false || !resp.state['text_simple']) {
                                     //add import if required
                                     if (context.x_state.ui.viewNPM!='') {
-                                        context.x_state.pages[resp.state.current_page].imports[context.x_state.ui.textTag] = context.x_state.ui.viewNPM;
+                                        if (context.x_state.ui.viewNPMSingle==true) {
+                                            context.x_state.pages[resp.state.current_page].imports[context.x_state.ui.textTag] = context.x_state.ui.viewNPM+'/'+context.x_state.ui.textTag;
+                                        } else {
+                                            context.x_state.pages[resp.state.current_page].imports[context.x_state.ui.textTag] = context.x_state.ui.viewNPM;
+                                        }
                                     }
                                     resp.open += context.tagParams(context.x_state.ui.textTag, params) + text + '</'+context.x_state.ui.textTag+'>\n';
                                 } else {
@@ -2139,8 +2185,24 @@ module.exports = async function(context) {
         'def_event_mounted': {
             x_icons: 'help',
             x_level: '3,4',
-            x_text_contains: ':mounted',
-            hint: 'Evento especial :mounted en pagina vue',
+            x_text_contains: 'mounted',
+            x_or_isparent: 'def_page,def_componente',
+            hint: 'Special virtual event mounted; runs its code when the component/page is mounted',
+            autocomplete: await (async()=>{
+                // this method needs to return an Object
+                // add support for '?mounted' options
+                let ac = {};
+                ac['mounted'] = {
+                    text: 'mounted',
+                    icons: ['help'],
+                    parents: [],
+                    level: [3,4],
+                    type: 'virtual-event',
+                    hint: 'Special virtual event mounted; runs its code when the component/page is mounted',
+                    attributes: {}
+                }
+                return ac;
+            })(),
             func: async function(node, state) {
                 let resp = context.reply_template({
                     state,
@@ -2148,9 +2210,9 @@ module.exports = async function(context) {
                 });
                 if (node.nodes_raw.length==0) return resp;
                 let params = {};
-                resp.open = context.tagParams('vue_mounted', {}, false)+'<!--';
-                if (node.text_note != '') resp.open += `/*${node.text_note.cleanLines()}*/\n`;
-                resp.close = '--></vue_mounted>';
+                resp.open = context.tagParams('react_mounted', {}, false)+'<!--';
+                if (node.text_note != '') resp.open += `/* ${node.text_note.cleanLines()} */\n`;
+                resp.close = '--></react_mounted>';
                 resp.state.from_script=true;
                 return resp;
             }

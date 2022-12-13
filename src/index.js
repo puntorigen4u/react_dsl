@@ -1233,6 +1233,34 @@ ${this.x_state.dirs.compile_folder}/`;
         //
         // PROCESS other * VIRTUAL TAGS
         //
+        // process 'react_mounted' into react script like: useEffect(()=>{//html() of react_mounted },[])
+        nodes = $(`react\_mounted`).toArray();
+        if (nodes.length > 0) this.debug('post-processing react_mounted tag');
+        if (!react.init) react.init = ``;
+        let uses_await = false, mounted_content = '';
+        nodes.map(function(elem) {
+            let cur = $(elem);
+            //console.log('valor react_mounted',elem.children[0].data);
+            if (elem.children[0].data.includes('await ')) {
+                uses_await = true;
+            }
+            mounted_content += elem.children[0].data; //cur.text();
+            cur.remove();
+            //react.script += elem.children[0].data
+        });
+        if (mounted_content.length > 0) {
+            if (uses_await) {
+                //wrap within a self calling async function
+                mounted_content = `const asyncMounted = async () =>{
+                    ${mounted_content}
+                };
+                asyncMounted().catch(console.error); //call function and catch any error
+                `;
+            }
+            //wrap useEffect when using react.init not here
+            react.init += `useEffect(()=>{${mounted_content}},[])`;
+        }
+        react.template = $.html();
         /* 
         if (nodes.length > 0) vue.script += `}\n`;
         // process ?mounted event
@@ -2065,7 +2093,7 @@ ${cur.attr('name')}: {
         //create App.jsx
         //@todo obtain files and routes from map and use React Router
         let appJSX =
-        `import React from "react";
+        `import React, { useState, useEffect } from 'react';
         import ReactDOM from "react-dom";
         {appJSX.imports}
 
@@ -3254,7 +3282,7 @@ export const decorators = [
                 react = this.decryptSpecialProps(react);
                 // ************************************
                 // export default
-                react.script = `import React from 'react';
+                react.script = `import React, { useState, useEffect } from 'react';
                 {concepto:import}
 
                 export const {concepto:name} = ({concepto:attributes}) => {
@@ -3272,7 +3300,7 @@ export const decorators = [
                 react.script = react.script.replaceAll('{concepto:name}',thefile.file.split('.')[0]);
                 react.script = react.script.replaceAll('{concepto:variables}',react.variables);
                 react.script = react.script.replaceAll('{concepto:template}',react.template);
-                react.script = react.script.replaceAll('{concepto:init}',''); //@todo
+                react.script = react.script.replaceAll('{concepto:init}',react.init); //@todo
                 react.script = react.script.replaceAll('{concepto:methods}',''); //@todo
                 //page.params is only for components not pages
                 if (page.params=='' || page.type=='page') {
@@ -3970,7 +3998,7 @@ export const decorators = [
                 //little hack that works together with writeFile method
                 resp.push(`${key}="xpropx"`); 
             } else if (typeof value !== 'object' && typeof value !== 'function' && typeof value !== 'undefined') {
-                this.debug('typeof value',typeof value);
+                //this.debug('typeof value',typeof value);
                 if (key[0] == ':') {
                     //serialize value
                     //this.debug('struct2params',{key,value});

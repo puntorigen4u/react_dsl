@@ -187,7 +187,7 @@ export class base_ui {
             hint: 'Represents a file to be created',
             level: [2,3],
             icons: [],
-            childrenTypes: [],
+            childrenTypes: ['event*','view*'],
             attributes: {
                 'path': {
                     type: 'string',
@@ -270,6 +270,7 @@ export class base_ui {
             'textTag': 'div',
             'iconNPM': '',
             'viewNPM': '',
+            viewNPMSingle: false, //false -> import { view } from 'viewNPM'; false -> import view from 'viewNPM/view';
             textSimpleIfParentView: [],
             bold: { //gets merged on textTags
                 class: 'font-weight-bold'

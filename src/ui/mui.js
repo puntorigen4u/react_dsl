@@ -43,6 +43,7 @@ export class mui extends base_ui {
             'textTag': 'Typography',
             'viewNPM': '@mui/material',
             'iconNPM': '@mui/icons-material',
+            viewNPMSingle: true,
             textSimpleIfParentView:['Button'],
             bold: {
                 sx: {
