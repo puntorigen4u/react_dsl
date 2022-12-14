@@ -258,6 +258,7 @@ export const autocomplete = async(parent) =>{
     components.sx = {
         type: 'attribute',
         icons: ['list'],
+        text: 'sx',
         parents: ['Box','Container'],
         level: [],
         childrenTypes: ['attribute'],
@@ -267,7 +268,9 @@ export const autocomplete = async(parent) =>{
             let sx = {};
             for (let i in systemProp_) {
                 sx['{icon:list}'+i] = systemProp_[i];
-                sx['{icon:list}'+i].hint += `<br/><br/><b>posible values</b>: ${systemProp_[i].type}`;
+                if (systemProp_[i].type!='object') {
+                    sx['{icon:list}'+i].hint += `<br/><br/><b>posible values</b>: ${systemProp_[i].type}`;
+                }
                 if (sx['{icon:list}'+i].childrenTypes && sx['{icon:list}'+i].childrenTypes.length>0) {
                     sx['{icon:list}'+i].childrenTypes.push(i+'-value');
                 } else {
@@ -309,7 +312,8 @@ export const autocomplete = async(parent) =>{
         }
     }
     // ****************************
-    // LAYOUT:
+    // ** LAYOUTS:
+    // ****************************
     components.Box = parent.extend(components['-private-systemProperties'],
         {
             type: 'view',
@@ -503,20 +507,6 @@ export const autocomplete = async(parent) =>{
             }
         }
     );
-    // add ImageList 'variant' attribute alternatives
-    // @todo add this logic automatically within generateAutoComplete() of concepto class (iterate types of attributes and set childrenTypes as generated children types)
-    /*for (let variant of ['masonry','quilted','standard','woven']) {
-        components['ImageListVariant'+variant] = parent.extend(types.base,
-            {
-                type: 'imagelist-variant',
-                text: variant,
-                parents: ['variant'],
-                hint: 'Variant of ImageList layout.',
-            }
-        );
-        components['ImageListVariant'+variant].icons = [];
-    }*/
-
     components.ImageListItem = parent.extend(types.base,
         {
             type: 'imagelist-item',
@@ -592,6 +582,127 @@ export const autocomplete = async(parent) =>{
             }
         }
     );
+    // ****************************
+    // ** DATA DISPLAY:
+    // ****************************
+    components.Avatar = parent.extend(types.base,
+        {
+            type: 'view-avatar',
+            text: 'Avatar',
+            hint: `Avatars are found throughout material design with uses in everything from tables to dialog menus.`,
+            childrenTypes: ['script*','attribute*','event'],
+            attributes: {
+                '{icon:list}classes': {
+                    type: 'object',
+                    hint: 'Override or extend the styles applied to the component.',
+                },
+                '{icon:list}sx': {
+                    type: 'object',
+                    hint: 'The sx prop is a shortcut for defining custom styles that has access to the theme.',
+                },
+                '{icon:list}component': {
+                    type: 'string',
+                    default: 'div',
+                    hint: 'The component used for the root node. Either a string to use a HTML element or a component.'
+                },
+                '{icon:list}alt': {
+                    type: 'string',
+                    hint: `Used in combination with src or srcSet to provide an alt attribute for the rendered img element.`
+                },
+                '{icon:list}imgProps': {
+                    type: 'object',
+                    hint: `Attributes applied to the img element if the component is used to display an image.`,
+                    attributes: {
+                        '{icon:list}src': {
+                            type: 'string',
+                            hint: `The src attribute for the img element.`
+                        },
+                        '{icon:list}srcset': {
+                            type: 'string',
+                            hint: `The srcSet attribute for the img element.`
+                        },
+                        '{icon:list}sizes': {
+                            type: 'string',
+                            hint: `The sizes attribute for the img element.`
+                        },
+                        '{icon:list}loading': {
+                            type: 'eager,auto',
+                            default: 'auto',
+                            hint: `The loading attribute for the img element to use for lazy loading with a placeholder.`
+                        },
+                        '{icon:list}width': {
+                            type: 'number',
+                            hint: `The width attribute for the img element.`
+                        }
+                    }
+                },
+                '{icon:list}sizes': {
+                    type: 'string',
+                    hint: `The sizes attribute for the img element.`
+                },
+                '{icon:list}src': {
+                    type: 'string',
+                    hint: `The src attribute for the img element.`
+                },
+                '{icon:list}srcSet': {
+                    type: 'string',
+                    hint: `The srcSet attribute for the img element.`
+                },
+                '{icon:list}variant': {
+                    type: 'circular,rounded,square',
+                    default: 'circular',
+                    hint: `The shape of the avatar.`
+                },
+            }
+        }
+    );
+    components.AvatarGroup = parent.extend(types.base,
+        {
+            type: 'view',
+            text: 'AvatarGroup',
+            hint: `Avatars are found throughout material design with uses in everything from tables to dialog menus.`,
+            childrenTypes: ['view-avatar','script*','attribute*','event'],
+            attributes: {
+                '{icon:list}classes': {
+                    type: 'object',
+                    hint: 'Override or extend the styles applied to the component.',
+                },
+                '{icon:list}sx': {
+                    type: 'object',
+                    hint: 'The sx prop is a shortcut for defining custom styles that has access to the theme.',
+                },
+                '{icon:list}component': {
+                    type: 'string',
+                    default: 'div',
+                    hint: 'The component used for the root node. Either a string to use a HTML element or a component.'
+                },
+                '{icon:list}max': {
+                    type: 'number',
+                    default: '5',
+                    hint: `Max avatars to show before +x.`
+                },
+                '{icon:list}slotProps': {
+                    type: 'object',
+                    hint: `The extra props for the slot components. You can override the existing props or add new ones.`
+                },
+                '{icon:list}spacing': {
+                    type: 'medium,small,number',
+                    default: 'medium',
+                    hint: `The spacing between avatars.`
+                },
+                '{icon:list}total': {
+                    type: 'number',
+                    hint: `The total number of avatars in the group.`
+                },
+                '{icon:list}variant': {
+                    type: 'circular,rounded,square,string',
+                    default: 'circular',
+                    hint: `The variant to use.`
+                }
+            }
+        }
+    );
+
     // ****************************
     // ICON: dynamic import from @mui/icons-material
     // also adds the x_command 'icon:Outlined:name' support
