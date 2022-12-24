@@ -1,6 +1,6 @@
 {
   "name": "@concepto/react",
-  "version": "0.0.2992",
+  "version": "0.0.2993",
   "description": "Concepto DSL - Visually create and maintain modern Node.js based web apps (@react)",
   "keywords": [
     "creador",
@@ -40,6 +40,7 @@
     "@concepto/interface": "*",
     "@emotion/styled": "^11.10.5",
     "@mui/icons-material": "^5.10.16",
+    "@rollup/plugin-json": "^6.0.0",
     "@stitches/stringify": "^1.2.8",
     "asciify-image": "^0.1.6",
     "await-spawn": "^4.0.2",
@@ -69,6 +70,7 @@
     "password-generator": "^2.3.2",
     "prettier": "^2.2.1",
     "print-code": "^1.0.2",
+    "react-state-proxy": "^1.4.11",
     "recursive-copy": "^2.0.11",
     "safe-eval": "^0.4.1",
     "serial-number": "^1.3.0",

@@ -294,6 +294,7 @@ export default class react_dsl extends concepto {
         this.x_state.npm['@babel/runtime'] = '^7.13.10';
         this.x_state.npm['react'] = '^17.0.2';
         this.x_state.npm['react-dom'] = '^17.0.2';
+        this.x_state.npm['react-state-proxy'] = '^1.4.11';
         // axios
         // this.x_state.npm['@nuxtjs/axios'] = '*';
         // default devDependencies
@@ -1080,6 +1081,7 @@ ${this.x_state.dirs.compile_folder}/`;
                 if (react.first) react.script += ',\n';
                 react.first = true;
                 console.log(page.variables);
+                /*
                 for (let key in page.variables) {
                     let def_val = (page.variables[key])?this.jsDump(page.variables[key]):`''`;
                     if (page.var_types[key] && def_val==`''`) {
@@ -1095,7 +1097,8 @@ ${this.x_state.dirs.compile_folder}/`;
                         }
                     }
                     react.variables += `const [ ${key}, ${camel('set_'+key)} ] = useState(${def_val});\n`;
-                }
+                }*/
+                react.variables = `const $variables = stateProxy(${this.jsDump(page.variables)});\n`;
                 //react.script += `data() {\n`;
                 //react.script += ` return ${this.jsDump(page.variables)}\n`;
                 //react.script += `}\n`;
@@ -3345,6 +3348,25 @@ export const decorators = [
                 react.script = react.script.replaceAll('{concepto:params}',pageParams); //@todo
                 // create page styles if any
                 if (Object.keys(page.styles).length>0) {
+                    // transform page.styles arrays into a single object
+                    let copy_ = { ...page.styles };
+                    for (let key in copy_) {
+                        if (Array.isArray(copy_[key])) {
+                            let sObj = {};
+                            for (let i=0;i<copy_[key].length;i++) {
+                                let keys_ = Object.keys(copy_[key][i]);
+                                for (let j=0;j<keys_.length;j++) {
+                                    let key_ = keys_[j];
+                                    let value_ = copy_[key][i][key_];
+                                    sObj[key_] = value_;
+                                }
+                                //let value_ = Object.values(copy_[key][i])[0];
+                                //sObj[key_] = value_;
+                            }
+                            page.styles[key] = sObj;
+                        }
+                    }
+                    //
                     // create file @styles/{thefile.file.replaceAll('.js','.type.css')}
                     let page_css = stringify(page.styles);
                     let page_import = thefile.file.replaceAll('.js',`.module.css`);
@@ -3359,6 +3381,10 @@ export const decorators = [
                     await this.writeFile(page_css_file,page_css);
                     // add to script_imports
                     //this.debug('CSS the file',thefile.file);
+                }
+                // add import { stateProxy } from 'react-state-proxy'; if react.variables is not empty
+                if (react.variables!='') {
+                    script_imports += `import { stateProxy } from 'react-state-proxy';\n`;
                 }
                 // add imports
                 react.script = react.script.replaceAll('{concepto:import}',script_imports);

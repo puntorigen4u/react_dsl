@@ -881,6 +881,7 @@ export const autocomplete = async(parent) =>{
     components.Button = parent.extend(components.ButtonBase,
         {
             extends_: 'ButtonBase',
+            type: 'button-view',
             hint:'Buttons allow users to take actions, and make choices, with a single tap.', 
             attributes:{
                 'color': { 
@@ -979,6 +980,7 @@ export const autocomplete = async(parent) =>{
     components.ButtonGroup = parent.extend(types.base,
         {
             hint:`Component that groups buttons together`,
+            childrenTypes: ['button-view'],
             attributes: {
                 '{icon:list}classes': {
                     //type: systemProp["marginRight"].type,

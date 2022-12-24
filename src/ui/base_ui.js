@@ -3,6 +3,8 @@
 * @name 	base_ui
 * @module 	base_ui
 **/
+import css from './css-properties.json'
+
 export class base_ui {
 
 	constructor({ context={}, name='base_ui' }={}) {
@@ -187,7 +189,7 @@ export class base_ui {
             hint: 'Represents a file to be created',
             level: [2,3],
             icons: [],
-            childrenTypes: ['event*','view*'],
+            childrenTypes: ['event*','view*','styles'],
             attributes: {
                 'path': {
                     type: 'string',
@@ -206,7 +208,7 @@ export class base_ui {
             hint: 'Represents component file to be created',
             level: [2,3],
             icons: [],
-            childrenTypes: ['view*','attribute*','config','image'],
+            childrenTypes: ['view*','attribute*','config','image','styles'],
             attributes: {
                 'params': {
                     type: 'string',
@@ -215,6 +217,57 @@ export class base_ui {
                 }
             }
         };
+        shared['file_styles'] = {
+            type: 'styles',
+            text: 'styles',
+            hint: 'Represents a css file to be created related to a file',
+            level: [3,4],
+            icons: ['desktop_new'],
+            childrenTypes: ['style-class*'],
+            attributes: {}
+        };
+        // create a style-class for each html tag
+        let tags = Object.keys(css.tags);
+        //@TODO restrict tags to only the ones used within the diagram
+        for (let i of tags) {
+            const tag = css.tags[i];
+            shared['style-class-'+i] = {
+                type: 'style-class',
+                text: tag,
+                hint: 'Defines styling CSS attributes for HTML tag '+tag,
+                level: [4,5,6,7,8],
+                icons: [],
+                childrenTypes: ['css-property*'],
+                attributes: {}
+            };
+        }
+        // create types 'css-property'
+        let props = Object.keys(css.properties);
+        for (let i of props) {
+            const prop = css.properties[i];
+            shared['css-prop-'+i] = {
+                type: 'css-property',
+                text: i,
+                hint: prop.description,
+                level: [5,6,7,8,9],
+                icons: ['list'],
+                childrenTypes: ['css-'+i+'-value'],
+                attributes: {}
+            };
+            // generate AC items for each value of current prop
+            for (let type_ of prop.values) {
+                shared['css-'+i+'-value-'+type_] = {
+                    type: 'css-'+i+'-value',
+                    text: type_,
+                    hint: `Value for css property <b>${i}</b>.`,
+                    level: [6,7,8,9,10],
+                    icons: [],
+                    childrenTypes: ['none'],
+                    attributes: {}
+                };
+            }
+        }
+        //console.log('css properties',css.properties);
         return shared;
     }
 
