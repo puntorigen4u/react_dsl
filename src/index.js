@@ -1080,8 +1080,8 @@ ${this.x_state.dirs.compile_folder}/`;
                 let camel = require('camelcase');
                 if (react.first) react.script += ',\n';
                 react.first = true;
-                console.log(page.variables);
-                /*
+                //console.log(page.variables);
+                /* - this could be useful if we enable an option for user to define using vars as either state or proxy
                 for (let key in page.variables) {
                     let def_val = (page.variables[key])?this.jsDump(page.variables[key]):`''`;
                     if (page.var_types[key] && def_val==`''`) {
@@ -1264,6 +1264,24 @@ ${this.x_state.dirs.compile_folder}/`;
             react.init += `useEffect(()=>{${mounted_content}},[])`;
         }
         react.template = $.html();
+
+        // process ?init event
+        nodes = $(`react\_init`).toArray();
+        if (nodes.length > 0) this.debug('post-processing react_init tag');
+        if (!react.init) react.init = ``;
+        uses_await = false, mounted_content = '';
+        nodes.map(function(elem) {
+            let cur = $(elem);
+            //console.log('value reaact_init',elem.children[0].data);
+            if (elem.children[0].data.includes('await ')) {
+                uses_await = true;
+            }
+            mounted_content += elem.children[0].data; //cur.text();
+            cur.remove();
+            react.init += '\n'+mounted_content;
+        });
+        react.template = $.html();
+
         /* 
         if (nodes.length > 0) vue.script += `}\n`;
         // process ?mounted event

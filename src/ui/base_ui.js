@@ -50,7 +50,7 @@ export class base_ui {
         // main commands for now; pages, components, models, config node
         let shared = {};
         shared['_centralnode_'] = {
-            text: 'appName',
+            text: '!appName!', //@TODO anything wrapped in ! will be treated as empty (not required to match to be valid) for the AC
             type: 'config',
             hint: 'Defines the name of the project and its main configuration',
             level: [1],
@@ -183,13 +183,31 @@ export class base_ui {
             childrenTypes: ['file'],
             attributes: {}
         };
+        shared['mounted_event'] = {
+            type: 'virtual-event',
+            text: 'mounted',
+            hint: 'Code to be executed when the page or component is mounted',
+            level: [3,4],
+            icons: ['help'],
+            childrenTypes: ['script*'],
+            attributes: {}
+        };
+        shared['init_event'] = {
+            type: 'virtual-event',
+            text: 'init',
+            hint: 'Code to be executed before the page or component is rendered',
+            level: [3,4],
+            icons: ['help'],
+            childrenTypes: ['script*'],
+            attributes: {}
+        };
         shared['page'] = {
             text: 'filename',
             type: 'file',
             hint: 'Represents a file to be created',
             level: [2,3],
             icons: [],
-            childrenTypes: ['event*','view*','styles'],
+            childrenTypes: ['event*','view*','styles','virtual-event'],
             attributes: {
                 'path': {
                     type: 'string',
@@ -205,10 +223,11 @@ export class base_ui {
         };
         shared['component:*'] = {
             type: 'file',
+            text: 'component:*',
             hint: 'Represents component file to be created',
             level: [2,3],
             icons: [],
-            childrenTypes: ['view*','attribute*','config','image','styles'],
+            childrenTypes: ['view*','attribute*','config','image','styles','virtual-event'],
             attributes: {
                 'params': {
                     type: 'string',
@@ -242,6 +261,7 @@ export class base_ui {
             };
         }
         // create types 'css-property'
+        /*
         let props = Object.keys(css.properties);
         for (let i of props) {
             const prop = css.properties[i];
@@ -266,7 +286,7 @@ export class base_ui {
                     attributes: {}
                 };
             }
-        }
+        }*/
         //console.log('css properties',css.properties);
         return shared;
     }
